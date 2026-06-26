@@ -193,7 +193,7 @@
                 </div>
             </div>
             <div class="pdf-content">
-                <iframe id="pdfViewer" src="test.pdf"></iframe>
+                <iframe id="pdfViewer" src=""></iframe>
             </div>
         </div>
     </div>
@@ -254,6 +254,12 @@
         });
 
         table_body.appendChild(table_row);
+    }
+
+    const firstRow = document.querySelector(".task-table tbody tr");
+
+    if (firstRow) {
+        firstRow.click();
     }
 
     async function loadPdf(pdfBytes) {
