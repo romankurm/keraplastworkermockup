@@ -188,8 +188,7 @@
                         </svg></button>
                 </div>
                 <div class="task-data">
-                    <p>Klient: X</p>
-                    <p>T&auml;htaeg: HOMME</p>
+                    
                 </div>
             </div>
             <div class="pdf-content">
@@ -219,6 +218,15 @@
     let task_table = document.getElementById("task-table");
 
     let table_body = document.querySelector(".task-table tbody");
+
+    const intervalId = setInterval(() => {
+
+        let task_table = document.getElementById("task-table");
+
+        let table_body = document.querySelector(".task-table tbody");
+        
+        console.log("This runs every 5 seconds");
+    }, 5000); // 5000 milliseconds = 5 seconds
 
     for (let i = 0; i < orders.length; ++i) {
 

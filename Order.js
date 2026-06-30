@@ -1,5 +1,7 @@
 export class Order {
 
+    static selectedOrder = null;
+
     constructor(guid, t_nr, so_nr, client, amount, task, material, pdf) {
         this.guid = guid;
         this.t_nr = t_nr;
@@ -73,6 +75,36 @@ export class Order {
 
     setPdf(value) {
         this.pdf = value;
+    }
+
+    async startTask() {
+
+        const url = `https://keraplast.prodcell.com/api/orders/${this.getGuid()}/start`
+
+        const response = await fetch(url, 
+            {
+                method: "POST",
+                headers: {
+                    "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl"
+                }
+            }
+        );
+
+    }
+
+    async endTask() {
+
+        const url = `https://keraplast.prodcell.com/api/orders/${this.getGuid()}/end`
+
+        const response = await fetch(url, 
+            {
+                method: "POST",
+                headers: {
+                    "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl"
+                }
+            }
+        );
+
     }
 
 }
