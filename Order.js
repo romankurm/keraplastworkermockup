@@ -1,6 +1,6 @@
 export class Order {
 
-    static selectedOrder = null;
+    static currentOrders = [];
 
     constructor(guid, t_nr, so_nr, client, amount, task, material, pdf) {
         this.guid = guid;

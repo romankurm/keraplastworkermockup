@@ -188,7 +188,7 @@
                         </svg></button>
                 </div>
                 <div class="task-data">
-                    
+
                 </div>
             </div>
             <div class="pdf-content">
@@ -211,6 +211,8 @@
 
     const orders = await fetcher.getOrders();
 
+    Order.currentOrders = orders;
+
     let promises = orders.map(order => fetcher.getObjectPDFBytes(order.getGuid()));
 
     const pdfBytesData = await Promise.all(promises);
@@ -218,15 +220,6 @@
     let task_table = document.getElementById("task-table");
 
     let table_body = document.querySelector(".task-table tbody");
-
-    const intervalId = setInterval(() => {
-
-        let task_table = document.getElementById("task-table");
-
-        let table_body = document.querySelector(".task-table tbody");
-        
-        console.log("This runs every 5 seconds");
-    }, 5000); // 5000 milliseconds = 5 seconds
 
     for (let i = 0; i < orders.length; ++i) {
 
@@ -270,6 +263,8 @@
         firstRow.click();
     }
 
+    const intervalID = setInterval(updateTable, 10000);
+
     async function loadPdf(pdfBytes) {
 
         const blob = new Blob(
@@ -280,6 +275,73 @@
         const url = URL.createObjectURL(blob);
 
         document.getElementById("pdfViewer").src = url;
+    }
+
+    async function updateTable() {
+
+        const fetcher = new DataFetcher();
+
+        const newOrders = await fetcher.getOrders();
+
+        let promises = orders.map(order => fetcher.getObjectPDFBytes(order.getGuid()));
+
+        const pdfBytesData = await Promise.all(promises);
+
+        let task_table = document.getElementById("task-table");
+
+        let table_body = document.querySelector(".task-table tbody");
+
+        const currentOrders = Order.currentOrders;
+
+        if (currentOrders.length < newOrders.length) {
+
+            for (let i = currentOrders.length; i < newOrders.length; ++i) {
+
+                const newOrder = newOrders[i];
+                const pdfBytes = pdfBytesData[i];
+
+                addRow(newOrder, pdfBytes);
+
+                Order.currentOrders.push(newOrder);
+
+            }
+
+        }
+    }
+
+    async function addRow(order, pdfBytes) {
+
+        let task_table = document.getElementById("task-table");
+
+        let table_body = document.querySelector(".task-table tbody");
+
+        let table_row = document.createElement("tr");
+
+        table_row.innerHTML = `
+            <td>${order.getTNr()}</td>
+            <td>${order.getMaterial()}</td>
+            <td>${order.getSoNr()}</td>
+            <td>${order.getClient()}</td>
+            <td>${order.getTask()}</td>
+            <td>${Math.trunc(order.getAmount())}</td>
+        `;
+
+        table_row.addEventListener("click", async () => {
+
+            if (!table_row.classList.contains("selected")) {
+                await loadPdf(pdfBytes);
+            }
+
+            document
+                .querySelectorAll(".task-table tbody tr")
+                .forEach(row => row.classList.remove("selected"));
+
+            table_row.classList.add("selected");
+
+        });
+
+        table_body.appendChild(table_row);
+
     }
 
 </script>
