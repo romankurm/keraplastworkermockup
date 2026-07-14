@@ -225,6 +225,11 @@
 
         const order = orders[i];
 
+        if (order.containsComment("valmis"))
+            continue;
+        if (order.isRemoved())
+            continue;
+
         let pdfBytes = pdfBytesData[i];
 
         if (pdfBytes == null) continue;
@@ -298,6 +303,10 @@
             for (let i = currentOrders.length; i < newOrders.length; ++i) {
 
                 const newOrder = newOrders[i];
+                if (newOrder.containsComment("valmis"))
+                    continue;
+                if (newOrder.isRemoved())
+                    continue;
                 const pdfBytes = pdfBytesData[i];
 
                 addRow(newOrder, pdfBytes);
@@ -310,6 +319,11 @@
     }
 
     async function addRow(order, pdfBytes) {
+
+        if (order.containsComment("valmis"))
+            return;
+        if (order.isRemoved())
+            return;
 
         let task_table = document.getElementById("task-table");
 

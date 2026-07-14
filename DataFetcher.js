@@ -72,8 +72,10 @@ export class DataFetcher {
             const amount = order.productQuantity;
             const task = order.productSpec;
             const material = order.material;
+            const comments = order.comments;
+            const status = order.status;
 
-            let ordr = new Order(guid, t_nr, so_nr, client, amount, task, material, "test.pdf");
+            let ordr = new Order(guid, t_nr, so_nr, client, amount, task, material, "test.pdf", comments, status);
 
             if (task != null)
                 newOrders.push(ordr);

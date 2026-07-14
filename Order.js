@@ -2,7 +2,7 @@ export class Order {
 
     static currentOrders = [];
 
-    constructor(guid, t_nr, so_nr, client, amount, task, material, pdf) {
+    constructor(guid, t_nr, so_nr, client, amount, task, material, pdf, comments, status) {
         this.guid = guid;
         this.t_nr = t_nr;
         this.so_nr = so_nr;
@@ -11,6 +11,25 @@ export class Order {
         this.task = task;
         this.material = material;
         this.pdf = pdf;
+        this.comments = comments;
+        this.status = status;
+    }
+
+    getStatus() {
+        return this.status;
+    }
+
+    isRemoved() {
+        if (this.getStatus() != null) {
+            if (this.getStatus().toLowerCase() == "x") {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    getComments() {
+        return this.comments;
     }
 
     getGuid() {
@@ -75,6 +94,18 @@ export class Order {
 
     setPdf(value) {
         this.pdf = value;
+    }
+
+    containsComment(comment) {
+        if (this.getComments() != null) {
+                const properties = this.getComments().split(" ");
+
+                for (const property of properties) {
+                    if (property.toLowerCase() == comment) {
+                        return true;
+                    }
+                }
+            }
     }
 
     async startTask() {
