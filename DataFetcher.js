@@ -43,7 +43,7 @@ export class DataFetcher {
 
     async getObjects(objectName) {
         const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/${objectName}`
+            `https://keraplast.prodcell.com/api/objects/${objectName}?limit=1000`
         );
 
         const response = await fetch(url, {
