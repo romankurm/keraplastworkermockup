@@ -123,8 +123,12 @@
     }
 
     .pdf-content {
+        position: sticky;
+        top: 20px;
+        display: flex;
+        flex-direction: column;
+
         height: 850px;
-        border-radius: 10px;
         overflow-y: auto;
         overflow-x: hidden;
         box-shadow:
@@ -144,6 +148,44 @@
 
     .task-table tbody tr.selected:hover {
         background-color: rgb(187, 222, 251);
+    }
+
+    .fullscreen-btn {
+        position: sticky;
+        top: 1px;
+
+        align-self: flex-end;
+
+        z-index: 1000;
+
+        width: 42px;
+        height: 42px;
+
+        border: none;
+        border-radius: 8px;
+
+        background: rgba(4, 6, 37, 0.85);
+        color: white;
+        font-size: 20px;
+
+        cursor: pointer;
+        transition: background .2s;
+    }
+
+    .fullscreen-btn:hover {
+        background: rgba(4, 6, 37, 1);
+    }
+
+    #pdfContainer:fullscreen {
+        width: 100vw;
+        height: 100vh;
+        background: white;
+        overflow-y: auto;
+    }
+
+    #pdfContainer:fullscreen #pdfViewer canvas {
+        max-width: 100%;
+        height: auto;
     }
 </style>
 
@@ -192,7 +234,10 @@
 
                 </div>
             </div>
-            <div class="pdf-content">
+            <div class="pdf-content" id="pdfContainer">
+                <button id="fullscreenBtn" class="fullscreen-btn">
+                    ⛶
+                </button>
                 <div id="pdfViewer"></div>
             </div>
         </div>
@@ -218,10 +263,6 @@
 
     Order.currentOrders = orders;
 
-    let promises = orders.map(order => fetcher.getObjectPDFBytes(order.getGuid()));
-
-    const pdfBytesData = await Promise.all(promises);
-
     let task_table = document.getElementById("task-table");
 
     let table_body = document.querySelector(".task-table tbody");
@@ -235,9 +276,7 @@
         if (order.isRemoved())
             continue;
 
-        let pdfBytes = pdfBytesData[i];
-
-        if (pdfBytes == null) continue;
+        let pdfBytes = null;
 
         let table_row = document.createElement("tr");
 
@@ -253,7 +292,11 @@
         table_row.addEventListener("click", async () => {
 
             if (!table_row.classList.contains("selected")) {
-                await loadPdf(pdfBytes);
+                pdfBytes = await fetcher.getObjectPDFBytes(order.getGuid());
+
+                if (pdfBytes) {
+                    await loadPdf(pdfBytes);
+                }
             }
 
             document
@@ -275,15 +318,29 @@
 
     const intervalID = setInterval(updateTable, 10000);
 
+    const pdfContainer = document.getElementById("pdfContainer");
+    const fullscreenBtn = document.getElementById("fullscreenBtn");
+
+    fullscreenBtn.addEventListener("click", async () => {
+
+        console.log("clicked");
+
+        if (!document.fullscreenElement) {
+            await pdfContainer.requestFullscreen();
+        } else {
+            await document.exitFullscreen();
+        }
+
+    });
+
     async function loadPdf(pdfBytes) {
 
         const viewer = document.getElementById("pdfViewer");
 
-        // Clear previous PDF
         viewer.innerHTML = "";
 
         const loadingTask = pdfjsLib.getDocument({
-            data: pdfBytes
+            data: pdfBytes.slice(0)
         });
 
         const pdf = await loadingTask.promise;
@@ -317,10 +374,6 @@
 
         const newOrders = await fetcher.getOrders();
 
-        let promises = orders.map(order => fetcher.getObjectPDFBytes(order.getGuid()));
-
-        const pdfBytesData = await Promise.all(promises);
-
         let task_table = document.getElementById("task-table");
 
         let table_body = document.querySelector(".task-table tbody");
@@ -336,9 +389,8 @@
                     continue;
                 if (newOrder.isRemoved())
                     continue;
-                const pdfBytes = pdfBytesData[i];
 
-                addRow(newOrder, pdfBytes);
+                addRow(newOrder);
 
                 Order.currentOrders.push(newOrder);
 
@@ -347,7 +399,7 @@
         }
     }
 
-    async function addRow(order, pdfBytes) {
+    async function addRow(order) {
 
         if (order.containsComment("valmis"))
             return;
@@ -372,7 +424,11 @@
         table_row.addEventListener("click", async () => {
 
             if (!table_row.classList.contains("selected")) {
-                await loadPdf(pdfBytes);
+                pdfBytes = await fetcher.getObjectPDFBytes(order.getGuid());
+
+                if (pdfBytes) {
+                    await loadPdf(pdfBytes);
+                }
             }
 
             document
