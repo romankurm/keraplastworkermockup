@@ -187,6 +187,15 @@
         max-width: 100%;
         height: auto;
     }
+
+    .pdf-content.expanded {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 99999;
+        background: white;
+    }
 </style>
 
 <body>
@@ -321,16 +330,8 @@
     const pdfContainer = document.getElementById("pdfContainer");
     const fullscreenBtn = document.getElementById("fullscreenBtn");
 
-    fullscreenBtn.addEventListener("click", async () => {
-
-        console.log("clicked");
-
-        if (!document.fullscreenElement) {
-            await pdfContainer.requestFullscreen();
-        } else {
-            await document.exitFullscreen();
-        }
-
+    fullscreenBtn.addEventListener("click", () => {
+        pdfContainer.classList.toggle("expanded");
     });
 
     async function loadPdf(pdfBytes) {
