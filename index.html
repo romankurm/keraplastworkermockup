@@ -8,6 +8,11 @@
 </head>
 
 <style>
+    .pdf-section {
+        position: fixed;
+        top: 0;
+    }
+
     .content {
         display: flex;
         gap: 30px;
@@ -78,20 +83,29 @@
         border: none;
         border-radius: 6px;
         padding: 10px 18px;
+    }
+
+    .startBtn {
+        background: greenyellow;
+        cursor: pointer;
         transition: box-shadow 0.2s ease;
     }
 
-    .start-btn {
-        background: greenyellow;
+    .button-disabled {
+        background-color: lightgray;
+
+        cursor: not-allowed;
     }
 
     .end-btn {
         background: red;
+        cursor: pointer;
+        transition: box-shadow 0.2s ease;
     }
 
-    .buttons-section button:hover {
+    .startBtn:hover,
+    .end-btn:hover {
         box-shadow: 2px 2px #000000;
-        cursor: pointer;
     }
 
     .action-content {
@@ -122,15 +136,19 @@
         cursor: pointer;
     }
 
-    .pdf-content {
-        position: sticky;
+    .pdf-wrapper {
         top: 20px;
+        align-self: flex-start;
+    }
+
+    .pdf-content {
         display: flex;
         flex-direction: column;
 
-        height: 850px;
+        height: calc(100vh - 40px);
         overflow-y: auto;
         overflow-x: hidden;
+
         box-shadow:
             0 6px 12px rgba(0, 0, 0, 0.18),
             0 16px 40px rgba(0, 0, 0, 0.15);
@@ -151,7 +169,6 @@
     }
 
     .fullscreen-btn {
-        position: sticky;
         top: 1px;
 
         align-self: flex-end;
@@ -170,6 +187,9 @@
 
         cursor: pointer;
         transition: background .2s;
+
+        position: sticky;
+        top: 0;
     }
 
     .fullscreen-btn:hover {
@@ -196,6 +216,99 @@
         z-index: 99999;
         background: white;
     }
+
+    .overlay {
+        position: fixed;
+        background-color: rgba(0, 0, 0, 0.6);
+        top: 0;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 99999;
+    }
+
+    .task-popup {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 230px;
+        background-color: white;
+        border-radius: 10px;
+        border: none;
+        box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .taskRows {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+        padding: 20px;
+        padding-top: 40px;
+        width: 65%;
+    }
+
+    .task-row {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .task-row input {
+        border-radius: 8px;
+        border: none;
+        box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.5);
+        text-align: center;
+        width: 40px;
+        height: 30px;
+    }
+
+    .task-row input::target-text {
+        font-size: 32px;
+    }
+
+    .task-row p {
+        font-size: 20px;
+        margin: 0px;
+        margin-top: 4px;
+        vertical-align: center;
+    }
+
+    .taskBtn {
+        cursor: pointer;
+    }
+
+    .popup-close {
+        position: absolute;
+        right: 2px;
+        top: 2px;
+        cursor: pointer;
+        padding: 5px 10px 5px 10px;
+        color: red;
+        background-color: rgba(0, 0, 0, 0);
+        border: 1px solid red;
+        border-radius: 25px;
+        transition: box-shadow 0.15s ease-in-out;
+    }
+
+    .popup-close:hover {
+        box-shadow: 0px 0px 4px rgba(255, 0, 0, 0.6);
+    }
+
+    .popup-save {
+        margin-top: 10px;
+        padding: 8px 14px 8px 14px;
+        cursor: pointer;
+        background-color: rgb(7, 62, 214);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: opacity 0.1s ease-in;
+    }
+
+    .popup-save:hover {
+        opacity: 0.7;
+    }
 </style>
 
 <body>
@@ -219,35 +332,37 @@
             </table>
         </div>
         <div class="task-content">
-            <div class="action-content">
-                <div class="buttons-section">
-                    <button class="task-data">T&ouml;&ouml;k&auml;sk</button>
-                    <button class="start-btn">Alusta <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-flag-icon lucide-flag">
-                            <path
-                                d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
-                        </svg></button>
+            <div class="pdf-section">
+                <div class="action-content">
+                    <div class="buttons-section">
+                        <button id="taskBtn" class="taskBtn">T&ouml;&ouml;k&auml;sk</button>
+                        <button id="startBtn" class="startBtn">Alusta <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round"
+                                class="lucide lucide-flag-icon lucide-flag">
+                                <path
+                                    d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
+                            </svg></button>
 
-                    <button class="end-btn">L&otilde;peta <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16"
-                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                            stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-flag-off-icon lucide-flag-off">
-                            <path d="M16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
-                            <path d="m2 2 20 20" />
-                            <path d="M4 22V4" />
-                            <path d="M7.656 2H8c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10.347" />
-                        </svg></button>
+                        <button id="endBtn" class="end-btn">L&otilde;peta <svg xmlns="http://www.w3.org/2000/svg"
+                                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                                class="lucide lucide-flag-off-icon lucide-flag-off">
+                                <path d="M16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
+                                <path d="m2 2 20 20" />
+                                <path d="M4 22V4" />
+                                <path d="M7.656 2H8c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10.347" />
+                            </svg></button>
+                    </div>
                 </div>
-                <div class="task-data">
-
+                <div class="pdf-wrapper">
+                    <div class="pdf-content" id="pdfContainer">
+                        <button id="fullscreenBtn" class="fullscreen-btn">
+                            ⛶
+                        </button>
+                        <div id="pdfViewer"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="pdf-content" id="pdfContainer">
-                <button id="fullscreenBtn" class="fullscreen-btn">
-                    ⛶
-                </button>
-                <div id="pdfViewer"></div>
             </div>
         </div>
     </div>
@@ -271,6 +386,8 @@
     const orders = await fetcher.getOrders();
 
     Order.currentOrders = orders;
+
+    await setupButtonEvents();
 
     let task_table = document.getElementById("task-table");
 
@@ -298,6 +415,8 @@
             <td>${Math.trunc(order.getAmount())}</td>
         `;
 
+        table_row.id = order.getGuid();
+
         table_row.addEventListener("click", async () => {
 
             if (!table_row.classList.contains("selected")) {
@@ -306,6 +425,11 @@
                 if (pdfBytes) {
                     await loadPdf(pdfBytes);
                 }
+                Order.selectedOrder = await fetcher.getOrderByGUID(order.getGuid());
+
+                refreshButtons();
+
+                console.log(`${Order.selectedOrder.getTNr()}`);
             }
 
             document
@@ -313,7 +437,6 @@
                 .forEach(row => row.classList.remove("selected"));
 
             table_row.classList.add("selected");
-
         });
 
         table_body.appendChild(table_row);
@@ -414,7 +537,7 @@
         let table_row = document.createElement("tr");
 
         table_row.innerHTML = `
-            <td>${order.getTNr()}</td>
+                < td > ${order.getTNr()}</td >
             <td>${order.getMaterial()}</td>
             <td>${order.getSoNr()}</td>
             <td>${order.getClient()}</td>
@@ -442,6 +565,78 @@
 
         table_body.appendChild(table_row);
 
+    }
+
+    async function setupButtonEvents() {
+        const startBtn = document.getElementById("startBtn");
+        const endBtn = document.getElementById("endBtn");
+        const taskBtn = document.getElementById("taskBtn");
+
+
+        startBtn.addEventListener("click", async () => {
+            await Order.selectedOrder.setStatus("W")
+            await Order.selectedOrder.startTask();
+            disableButton("startBtn");
+        });
+        endBtn.addEventListener("click", async () => {
+            await Order.selectedOrder.endTask();
+        });
+        taskBtn.addEventListener("click", async () => {
+            console.log("clicked");
+            let overlay = document.createElement("div");
+            overlay.className = "overlay";
+
+            overlay.innerHTML = `
+            <div class="task-popup">
+                <button id="popup-close" class="popup-close">X</button>
+                <div class="taskRows">
+                    <div class="task-row">
+                        <p>Pikkus:</p>
+                        <input type="text">
+                    </div>
+                    <div class="task-row">
+                        <p>Laius:</p>
+                        <input type="text">
+                    </div>
+                    <div class="task-row">
+                        <p>Kõrgus:</p>
+                        <input type="text">
+                    </div>
+                    <div class="task-row">
+                        <button id="popup-save" class="popup-save">Salvesta</button>
+                    </div>
+                </div>
+            </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            const popupCloseBtn = document.getElementById("popup-close");
+
+            popupCloseBtn.addEventListener("click", () => {
+                overlay.remove();
+            });
+        });
+    }
+
+    function disableButton(buttonId) {
+        const button = document.getElementById(buttonId);
+        button.className = "button-disabled";
+        button.disabled = true;
+    }
+
+    function enableButton(buttonId) {
+        const button = document.getElementById(buttonId);
+        button.className = buttonId
+        button.disabled = false;
+    }
+
+    function refreshButtons() {
+        if (Order.selectedOrder.getStatus() == "W") {
+            disableButton("startBtn");
+        } else {
+            enableButton("startBtn");
+        }
     }
 
 </script>

@@ -138,4 +138,32 @@ export class DataFetcher {
         return await response.arrayBuffer();
 
     }
+
+    async getOrderByGUID(guid) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${guid}`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "Accept": "application/json"
+            }
+        });
+
+        const orderJSON = await response.json();
+
+        const o_guid = orderJSON.guid;
+        const t_nr = orderJSON.number;
+        const so_nr = orderJSON.invoiceNumber;
+        const client = orderJSON.clientName;
+        const amount = orderJSON.productQuantity;
+        const task = orderJSON.productSpec;
+        const material = orderJSON.material;
+        const comments = orderJSON.comments;
+        const status = orderJSON.status;
+
+        return new Order(o_guid, t_nr, so_nr, client, amount, task, material, null, comments, status);
+    }
 };

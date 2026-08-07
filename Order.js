@@ -1,6 +1,7 @@
 export class Order {
 
     static currentOrders = [];
+    static selectedOrder = null;
 
     constructor(guid, t_nr, so_nr, client, amount, task, material, pdf, comments, status) {
         this.guid = guid;
@@ -136,6 +137,23 @@ export class Order {
             }
         );
 
+    }
+
+    async setStatus(status) {
+        const url = `https://keraplast.prodcell.com/api/objects/Order/${this.getGuid()}`;
+
+        const response = await fetch(url, 
+            {
+                method: "POST",
+                headers: {
+                    "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    "status": status
+                })
+            }
+        );
     }
 
 }
