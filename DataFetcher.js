@@ -139,6 +139,28 @@ export class DataFetcher {
 
     }
 
+    async getObjectJSONBytes(object_id) {
+
+        let json_guid = await this.getOrderFileGUID(object_id, "taskFields");
+
+        if (json_guid == null) return null;
+
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${object_id}/files/${json_guid}/download`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "Accept": "application/json"
+            }
+        });
+
+        return await response.arrayBuffer();
+
+    }
+
     async getOrderByGUID(guid) {
         const url = new URL(
             `https://keraplast.prodcell.com/api/objects/Order/${guid}`
@@ -166,4 +188,103 @@ export class DataFetcher {
 
         return new Order(o_guid, t_nr, so_nr, client, amount, task, material, null, comments, status);
     }
+
+    async createJsonFile(guid, jsonBytes) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files?name=taskFields&mimetype=application/json`
+        );
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "Accept": "application/json"
+            },
+            body: jsonBytes
+        });
+    }
+
+    async replaceJsonFile(order_guid, file_guid, jsonBytes) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${order_guid}/files/${file_guid}?name=taskFields&mimetype=application/json`
+        );
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "Accept": "application/json"
+            },
+            body: jsonBytes
+        });
+    }
+
+    async getOrderFilesList(guid) {
+
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files?deleted=0`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+            }
+        });
+
+        const orderFileListJSON = await response.json();
+
+        const fileList = orderFileListJSON.data;
+
+        return fileList;
+
+    }
+
+    async hasTaskFieldsJSON(guid) {
+
+        const fileList = await this.getOrderFilesList(guid);
+
+        if (fileList == null) return;
+        if (fileList.length == 0) return;
+
+        for (let fileObj of fileList) {
+            const fileName = fileObj.name;
+            if (fileName == "taskFields")
+                return true;
+        }
+
+        return false;
+
+    }
+
+    async getOrderFileGUID(guid, fileName) {
+        const filesList = await this.getOrderFilesList(guid);
+
+        if (filesList.length != 0) {
+
+            for (const fileObj of filesList) {
+                const fName = fileObj.name;
+
+                if (fName == fileName) {
+                    const fileGuid = fileObj.guid;
+                    return fileGuid;
+                }
+            }
+
+        }
+    }
+
+    async getTaskFieldsJSON(guid) {
+        const fileList = await this.getOrderFilesList(guid);
+
+        for (const fileObj of fileList) {
+            const fName = fileObj.name;
+
+            if (fName == "taskFields") {
+                return fileObj;
+            }
+        }
+    }
+
+
 };

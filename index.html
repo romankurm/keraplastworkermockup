@@ -97,14 +97,16 @@
         cursor: not-allowed;
     }
 
-    .end-btn {
+    .endBtn {
         background: red;
         cursor: pointer;
         transition: box-shadow 0.2s ease;
     }
 
     .startBtn:hover,
-    .end-btn:hover {
+    .endBtn:hover,
+    .pauseBtn:hover,
+    .resumeBtn:hover {
         box-shadow: 2px 2px #000000;
     }
 
@@ -309,6 +311,26 @@
     .popup-save:hover {
         opacity: 0.7;
     }
+
+    .salvesta-btn {
+        padding: 10px 15px 10px 15px;
+        background-color: rgb(6, 63, 221);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .pauseBtn {
+        background-color: yellow;
+        color: white;
+        cursor: pointer;
+    }
+
+    .resumeBtn {
+        color: white;
+        cursor: pointer;
+    }
 </style>
 
 <body>
@@ -334,8 +356,7 @@
         <div class="task-content">
             <div class="pdf-section">
                 <div class="action-content">
-                    <div class="buttons-section">
-                        <button id="taskBtn" class="taskBtn">T&ouml;&ouml;k&auml;sk</button>
+                    <div class="buttons-section" id="buttons-section">
                         <button id="startBtn" class="startBtn">Alusta <svg xmlns="http://www.w3.org/2000/svg" width="16"
                                 height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                 stroke-linecap="round" stroke-linejoin="round"
@@ -344,7 +365,7 @@
                                     d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
                             </svg></button>
 
-                        <button id="endBtn" class="end-btn">L&otilde;peta <svg xmlns="http://www.w3.org/2000/svg"
+                        <button id="endBtn" class="endBtn">L&otilde;peta <svg xmlns="http://www.w3.org/2000/svg"
                                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                                 class="lucide lucide-flag-off-icon lucide-flag-off">
@@ -422,10 +443,11 @@
             if (!table_row.classList.contains("selected")) {
                 pdfBytes = await fetcher.getObjectPDFBytes(order.getGuid());
 
+                Order.selectedOrder = await fetcher.getOrderByGUID(order.getGuid());
+
                 if (pdfBytes) {
                     await loadPdf(pdfBytes);
                 }
-                Order.selectedOrder = await fetcher.getOrderByGUID(order.getGuid());
 
                 refreshButtons();
 
@@ -464,18 +486,146 @@
         viewer.innerHTML = "";
 
         const loadingTask = pdfjsLib.getDocument({
-            data: pdfBytes.slice(0)
+            data: new Uint8Array(pdfBytes),
+            disableAutoFetch: true,
+            disableStream: true
         });
 
         const pdf = await loadingTask.promise;
+
+        const selectedOrder = Order.selectedOrder;
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
 
             const page = await pdf.getPage(pageNumber);
 
+            const textContent = await page.getTextContent();
+
             const viewport = page.getViewport({
                 scale: 1.5
             });
+
+            const pageContainer = document.createElement("div");
+            pageContainer.style.position = "relative";
+            pageContainer.style.width = `${viewport.width}px`;
+            pageContainer.style.height = `${viewport.height}px`;
+
+            const startIndex = textContent.items.findIndex(item => (item.str.includes("Valmistaja:") && item.transform[5] > 700)) + 2;
+            let endIndex = textContent.items.findIndex(item => (item.str.includes("Katseraport")));
+
+            if (endIndex == -1) {
+                endIndex = textContent.items.length;
+            }
+
+            const found = textContent.items.find(item =>
+                item.str.includes("Tellimus valmis:")
+            );
+
+            if (found && found.transform[5] > 700) {
+
+                const hasTaskFieldsJSON = await fetcher.hasTaskFieldsJSON(selectedOrder.getGuid());
+
+                if (hasTaskFieldsJSON) {
+                    const jsonBytes = await fetcher.getObjectJSONBytes(selectedOrder.getGuid());
+
+                    const jsonString = new TextDecoder().decode(jsonBytes);
+
+                    const fieldsList = JSON.parse(jsonString);
+
+                    for (let fieldObj of fieldsList) {
+                        createField(
+                            pageContainer,
+                            fieldObj.x,
+                            fieldObj.y,
+                            fieldObj.value
+                        );
+
+                        if (fieldObj.value.includes("Pakime")) {
+                            await createSalvestaButton(fieldObj.x - 7, fieldObj.y + 15, pageContainer, fetcher);
+                        }
+                    }
+
+                } else {
+                    let cleanedItems = textContent.items.slice(startIndex, endIndex);
+                    for (let item of cleanedItems) {
+                        const tx = pdfjsLib.Util.transform(
+                            viewport.transform,
+                            item.transform
+                        );
+
+                        createField(
+                            pageContainer,
+                            tx[4],
+                            tx[5],
+                            item.str
+                        );
+
+                        if (item.str.includes("Pakime")) {
+                            await createSalvestaButton(tx[4] - 7, tx[5] + 15, pageContainer, fetcher);
+                        }
+
+                    }
+                }
+
+                /*
+                textContent.items.forEach(item => {
+                    const tx = pdfjsLib.Util.transform(
+                        viewport.transform,
+                        item.transform
+                    );
+
+                    createField(
+                        pageContainer,
+                        tx[4],
+                        tx[5],
+                        item.str
+                    );
+
+                    if (item.str.includes("Pakime")) {
+                        await createSalvestaButton(tx[4] - 7, tx[5] + 15, pageContainer, fetcher);
+                        
+                        let salvestaBtn = createButton(
+                            pageContainer,
+                            tx[4] - 7,
+                            tx[5] + 15,
+                            "salvesta-btn",
+                            "Salvesta"
+                        );
+                        salvestaBtn.addEventListener("click", async () => {
+                            const allFields = document.querySelectorAll(".task-field");
+
+                            let fieldsList = [];
+
+                            for (const field of allFields) {
+                                console.log(field.value);
+
+                                const x = parseFloat(field.style.left);
+                                const y = parseFloat(field.style.top);
+
+                                fieldsList.push({
+                                    "value": field.value,
+                                    "x": x,
+                                    "y": y
+                                });
+
+                            }
+                            const jsonFields = JSON.stringify(fieldsList, null, 4);
+                            const jsonBytes = new TextEncoder().encode(jsonFields);
+
+                            if (!(await fetcher.hasTaskFields(selectedOrder.getGuid()))) {
+                                await fetcher.createJsonFile(selectedOrder.getGuid(), jsonBytes);
+                            } else {
+                                await fetcher.replaseJsonFile(selectedOrder.getGuid(), await fetcher.getOrderFileGUID(selectedOrder, "taskFields"), jsonBytes);
+                            }
+                        });
+                        
+                    }
+
+                });
+                */
+            }
+
+            viewer.appendChild(pageContainer);
 
             const canvas = document.createElement("canvas");
             const context = canvas.getContext("2d");
@@ -483,13 +633,100 @@
             canvas.width = viewport.width;
             canvas.height = viewport.height;
 
-            viewer.appendChild(canvas);
+            pageContainer.appendChild(canvas);
 
             await page.render({
                 canvasContext: context,
                 viewport: viewport
             }).promise;
         }
+    }
+
+    async function createSalvestaButton(x, y, pageContainer, fetcher) {
+
+        const selectedOrder = Order.selectedOrder;
+
+        let salvestaBtn = createButton(
+            pageContainer,
+            x,
+            y,
+            "salvesta-btn",
+            "Salvesta"
+        );
+        salvestaBtn.addEventListener("click", async () => {
+            const allFields = document.querySelectorAll(".task-field");
+
+            let fieldsList = [];
+
+            for (const field of allFields) {
+                console.log(field.value);
+
+                const x = parseFloat(field.style.left);
+                const y = parseFloat(field.style.top) + 24;
+
+                fieldsList.push({
+                    "value": field.value,
+                    "x": x,
+                    "y": y
+                });
+
+            }
+            const jsonFields = JSON.stringify(fieldsList, null, 4);
+            const jsonBytes = new TextEncoder().encode(jsonFields);
+
+            if (!(await fetcher.hasTaskFieldsJSON(selectedOrder.getGuid()))) {
+                await fetcher.createJsonFile(selectedOrder.getGuid(), jsonBytes);
+            } else {
+                console.log(selectedOrder.getGuid());
+                await fetcher.replaceJsonFile(selectedOrder.getGuid(), await fetcher.getOrderFileGUID(selectedOrder.getGuid(), "taskFields"), jsonBytes);
+            }
+        });
+    }
+
+
+    function createField(container, x, y, text) {
+
+        if (!text || text.trim() === "") return;
+
+        const input = document.createElement("input");
+
+        input.type = "text";
+
+        input.style.position = "absolute";
+        input.style.left = `${x}px`;
+        input.style.top = `${y - 24}px`;
+        input.style.fontSize = `18px`;
+        input.style.borderRadius = "8px";
+        input.style.border = "1px solid black";
+        input.style.height = "25px";
+        input.className = "task-field";
+
+        let inputWidth = text.length * 14;
+
+        if (inputWidth > 330) {
+            inputWidth = 330;
+        }
+
+        input.style.width = `${inputWidth}px`;
+
+        input.value = text;
+
+        container.appendChild(input);
+    }
+
+    function createButton(container, x, y, className, value) {
+        let btn = document.createElement("button");
+        btn.style.position = "absolute";
+        btn.style.left = `${x}px`;
+        btn.style.top = `${y}px`;
+        btn.style.fontSize = `18px`;
+        btn.className = className;
+        btn.textContent = value;
+        btn.id = className;
+
+        container.appendChild(btn);
+
+        return btn;
     }
 
     async function updateTable() {
@@ -567,55 +804,59 @@
 
     }
 
+    function existsToggleButton() {
+        const toggleBtn = document.getElementById("toggleBtn");
+        return toggleBtn != null;
+    }
+
+    function createToggleButton() {
+        const toggleBtn = document.createElement("button");
+        toggleBtn.textContent = "Peata";
+        toggleBtn.className = "pauseBtn";
+        toggleBtn.id = "toggleBtn";
+
+        toggleBtn.addEventListener("click", () => {
+            let textContent = toggleBtn.textContent;
+
+            if (textContent == "Peata") {
+                toggleBtn.textContent = "Jätka";
+            } else if (textContent == "Jätka") {
+                toggleBtn.textContent = "Peata";
+            }
+        });
+
+        const btnSection = document.getElementById("buttons-section");
+        btnSection.prepend(toggleBtn);
+    }
+
+    function deleteElement(id) {
+        const el = document.getElementById(id);
+        if (el != null) {
+            el.remove();
+        }
+    }
+
     async function setupButtonEvents() {
         const startBtn = document.getElementById("startBtn");
         const endBtn = document.getElementById("endBtn");
-        const taskBtn = document.getElementById("taskBtn");
 
 
         startBtn.addEventListener("click", async () => {
             await Order.selectedOrder.setStatus("W")
             await Order.selectedOrder.startTask();
             disableButton("startBtn");
+            enableButton("endBtn");
+
+            createToggleButton();
         });
         endBtn.addEventListener("click", async () => {
+            await Order.selectedOrder.setStatus("D")
             await Order.selectedOrder.endTask();
-        });
-        taskBtn.addEventListener("click", async () => {
-            console.log("clicked");
-            let overlay = document.createElement("div");
-            overlay.className = "overlay";
+            disableButton("endBtn");
 
-            overlay.innerHTML = `
-            <div class="task-popup">
-                <button id="popup-close" class="popup-close">X</button>
-                <div class="taskRows">
-                    <div class="task-row">
-                        <p>Pikkus:</p>
-                        <input type="text">
-                    </div>
-                    <div class="task-row">
-                        <p>Laius:</p>
-                        <input type="text">
-                    </div>
-                    <div class="task-row">
-                        <p>Kõrgus:</p>
-                        <input type="text">
-                    </div>
-                    <div class="task-row">
-                        <button id="popup-save" class="popup-save">Salvesta</button>
-                    </div>
-                </div>
-            </div>
-            `;
-
-            document.body.appendChild(overlay);
-
-            const popupCloseBtn = document.getElementById("popup-close");
-
-            popupCloseBtn.addEventListener("click", () => {
-                overlay.remove();
-            });
+            if (existsToggleButton()) {
+                document.getElementById("toggleBtn").remove();
+            }
         });
     }
 
@@ -634,8 +875,15 @@
     function refreshButtons() {
         if (Order.selectedOrder.getStatus() == "W") {
             disableButton("startBtn");
+            enableButton("endBtn");
+
+            if (!existsToggleButton()) {
+                createToggleButton();
+            }
         } else {
             enableButton("startBtn");
+            disableButton("endBtn");
+            deleteElement("toggleBtn");
         }
     }
 

@@ -139,6 +139,19 @@ export class Order {
 
     }
 
+    async pauseTask() {
+        const url = `https://keraplast.prodcell.com/api/orders/${this.getGuid()}/pause`
+
+        const response = await fetch(url, 
+            {
+                method: "POST",
+                headers: {
+                    "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl"
+                }
+            }
+        );
+    }
+
     async setStatus(status) {
         const url = `https://keraplast.prodcell.com/api/objects/Order/${this.getGuid()}`;
 
