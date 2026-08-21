@@ -8,40 +8,29 @@
 </head>
 
 <style>
-    .pdf-section {
-        position: fixed;
-        top: 0;
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        padding: 24px;
+        min-height: 100vh;
+        background: #f4f6f9;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: #1f2937;
     }
 
     .content {
         display: flex;
-        gap: 30px;
-    }
-
-    .table-content {
-        flex: 1;
-    }
-
-    .task-table {
+        gap: 28px;
+        align-items: flex-start;
         width: 100%;
-        border-radius: 10px;
-        border-collapse: separate;
-        border-spacing: 0;
-        overflow: hidden;
-        box-shadow:
-            0 4px 10px rgba(0, 0, 0, 0.15),
-            0 12px 30px rgba(0, 0, 0, 0.12);
-
-        background-color: white;
-    }
-
-    .task-table thead tr {
-        background-color: rgb(4, 6, 37);
-        color: white;
     }
 
     .task-content {
-        flex: 1;
+        position: sticky;
+        top: 20px;
     }
 
     .table-content,
@@ -50,67 +39,110 @@
         flex-direction: column;
     }
 
-    .amet,
-    .action-content {
+    .table-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .task-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* =========================
+       Section title
+       ========================= */
+
+    .amet {
         height: 60px;
-        display: flex;
-        align-items: center;
-    }
-
-    .task-table td {
-        padding: 15px;
-        font-size: larger;
-        text-align: center;
-    }
-
-    .task-table tbody tr:nth-child(even) {
-        background-color: whitesmoke;
-    }
-
-    .buttons-section {
-        display: flex;
-        gap: 15px;
-    }
-
-    .buttons-section button {
+        margin: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        gap: 6px;
 
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        color: #111827;
+    }
+
+    /* =========================
+       Task table
+       ========================= */
+
+    .task-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        overflow: hidden;
+
+        background: #ffffff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.04),
+            0 8px 24px rgba(15, 23, 42, 0.07);
+    }
+
+    .task-table thead tr {
+        background: #111827;
         color: white;
-        text-shadow: 1px 1px #000000;
+    }
+
+    .task-table thead td {
+        padding: 14px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+        text-transform: uppercase;
         border: none;
-        border-radius: 6px;
-        padding: 10px 18px;
     }
 
-    .startBtn {
-        background: greenyellow;
+    .task-table td {
+        padding: 15px 12px;
+        font-size: 15px;
+        text-align: center;
+        border-bottom: 1px solid #edf0f3;
+    }
+
+    .task-table tbody tr {
+        background: #ffffff;
+        transition:
+            background-color 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .task-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .task-table tbody tr:nth-child(even) {
+        background: #fafbfc;
+    }
+
+    .task-table tbody tr:hover {
+        background: #eef4ff;
+        transform: translateY(-1px);
         cursor: pointer;
-        transition: box-shadow 0.2s ease;
     }
 
-    .button-disabled {
-        background-color: lightgray;
-
-        cursor: not-allowed;
+    .task-table tbody tr.selected {
+        background: #dbeafe;
+        box-shadow: inset 4px 0 0 #2563eb;
     }
 
-    .endBtn {
-        background: red;
-        cursor: pointer;
-        transition: box-shadow 0.2s ease;
+    .task-table tbody tr.selected:hover {
+        background: #dbeafe;
     }
 
-    .startBtn:hover,
-    .endBtn:hover,
-    .pauseBtn:hover,
-    .resumeBtn:hover {
-        box-shadow: 2px 2px #000000;
-    }
+    /* =========================
+       Action buttons
+       ========================= */
 
     .action-content {
+        height: 60px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -118,27 +150,101 @@
         padding-bottom: 5px;
     }
 
-    .amet {
-        margin: 0px;
-        margin-bottom: 10px;
-        font-size: x-large;
-        text-align: center;
-        font-weight: bold;
+    .buttons-section {
+        display: flex;
+        gap: 10px;
     }
 
-    .task-table tbody tr {
-        transition:
-            background-color 0.2s ease,
-            transform 0.15s ease;
-    }
+    .buttons-section button {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
 
-    .task-table tbody tr:hover {
-        background-color: rgb(220, 235, 255);
-        transform: scale(1.01);
+        min-width: 110px;
+        padding: 10px 18px;
+
+        border: none;
+        border-radius: 9px;
+
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+
         cursor: pointer;
+
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.08);
+
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease,
+            filter 0.15s ease;
+    }
+
+    .buttons-section button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow:
+            0 4px 10px rgba(0, 0, 0, 0.15);
+        filter: brightness(1.04);
+    }
+
+    .buttons-section button:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow:
+            0 1px 3px rgba(0, 0, 0, 0.12);
+    }
+
+    .startBtn {
+        background: #16a34a;
+    }
+
+    .endBtn {
+        background: #dc2626;
+    }
+
+    .button-disabled {
+        background: #d1d5db !important;
+        color: #6b7280 !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        filter: none !important;
+        transform: none !important;
+    }
+
+    .pauseBtn,
+    .resumeBtn {
+        background: #f59e0b;
+        color: white;
+        cursor: pointer;
+        border: none;
+        border-radius: 9px;
+        padding: 10px 18px;
+        font-weight: 600;
+        transition:
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
+    }
+
+    .pauseBtn:hover,
+    .resumeBtn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    /* =========================
+       PDF viewer
+       ========================= */
+
+    .pdf-section {
+        position: sticky;
+        top: 20px;
+        align-self: flex-start;
+        height: calc(100vh - 40px);
     }
 
     .pdf-wrapper {
+        position: sticky;
         top: 20px;
         align-self: flex-start;
     }
@@ -148,61 +254,88 @@
         flex-direction: column;
 
         height: calc(100vh - 40px);
+
         overflow-y: auto;
         overflow-x: hidden;
 
+        background: #e5e7eb;
+
+        border: 1px solid #dfe3e8;
+        border-radius: 14px;
+
         box-shadow:
-            0 6px 12px rgba(0, 0, 0, 0.18),
-            0 16px 40px rgba(0, 0, 0, 0.15);
+            0 1px 2px rgba(0, 0, 0, 0.05),
+            0 12px 30px rgba(15, 23, 42, 0.10);
+    }
+
+    #pdfViewer {
+        padding: 18px;
     }
 
     #pdfViewer canvas {
         display: block;
         max-width: 100%;
         margin: 0 auto 20px auto;
+
+        background: white;
+
+        box-shadow:
+            0 2px 6px rgba(0, 0, 0, 0.10),
+            0 8px 20px rgba(0, 0, 0, 0.08);
     }
 
-    .task-table tbody tr.selected {
-        background-color: rgb(187, 222, 251);
-    }
-
-    .task-table tbody tr.selected:hover {
-        background-color: rgb(187, 222, 251);
-    }
+    /* =========================
+       Fullscreen button
+       ========================= */
 
     .fullscreen-btn {
-        top: 1px;
-
+        position: sticky;
+        top: 10px;
         align-self: flex-end;
 
         z-index: 1000;
 
-        width: 42px;
-        height: 42px;
+        width: 40px;
+        height: 40px;
 
-        border: none;
-        border-radius: 8px;
+        margin: 10px 10px -50px 0;
 
-        background: rgba(4, 6, 37, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 9px;
+
+        background: rgba(17, 24, 39, 0.92);
         color: white;
+
         font-size: 20px;
+        line-height: 1;
 
         cursor: pointer;
-        transition: background .2s;
 
-        position: sticky;
-        top: 0;
+        box-shadow:
+            0 3px 10px rgba(0, 0, 0, 0.18);
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease;
     }
 
     .fullscreen-btn:hover {
-        background: rgba(4, 6, 37, 1);
+        background: #111827;
+        transform: scale(1.05);
     }
+
+    /* =========================
+       Fullscreen PDF
+       ========================= */
 
     #pdfContainer:fullscreen {
         width: 100vw;
         height: 100vh;
-        background: white;
+
+        background: #e5e7eb;
+
         overflow-y: auto;
+        border-radius: 0;
     }
 
     #pdfContainer:fullscreen #pdfViewer canvas {
@@ -213,123 +346,267 @@
     .pdf-content.expanded {
         position: fixed;
         inset: 0;
+
         width: 100%;
         height: 100%;
+
         z-index: 99999;
-        background: white;
+
+        background: #e5e7eb;
+
+        border-radius: 0;
     }
+
+    /* =========================
+       Overlay
+       ========================= */
 
     .overlay {
         position: fixed;
-        background-color: rgba(0, 0, 0, 0.6);
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
+        inset: 0;
+
+        background: rgba(15, 23, 42, 0.55);
+        backdrop-filter: blur(3px);
+
         z-index: 99999;
     }
+
+    /* =========================
+       Popup
+       ========================= */
 
     .task-popup {
         position: fixed;
         top: 50%;
         left: 50%;
+
         transform: translate(-50%, -50%);
-        width: 230px;
-        background-color: white;
-        border-radius: 10px;
-        border: none;
-        box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.5);
+
+        width: 280px;
+
+        padding: 6px;
+
+        background: white;
+
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+
+        box-shadow:
+            0 20px 50px rgba(15, 23, 42, 0.20);
     }
 
     .taskRows {
         display: flex;
         flex-direction: column;
+
         gap: 15px;
-        padding: 20px;
+
+        padding: 24px;
         padding-top: 40px;
-        width: 65%;
+
+        width: 100%;
     }
 
     .task-row {
         display: flex;
         justify-content: space-between;
+        align-items: center;
+        gap: 15px;
     }
 
     .task-row input {
+        width: 45px;
+        height: 34px;
+
+        border: 1px solid #d1d5db;
         border-radius: 8px;
-        border: none;
-        box-shadow: 0px 0px 4px rgba(0, 0, 0, 0.5);
+
+        background: #f9fafb;
+
         text-align: center;
-        width: 40px;
-        height: 30px;
+        font-size: 15px;
+
+        outline: none;
+
+        transition:
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
     }
 
-    .task-row input::target-text {
-        font-size: 32px;
+    .task-row input:focus {
+        border-color: #2563eb;
+
+        box-shadow:
+            0 0 0 3px rgba(37, 99, 235, 0.12);
     }
 
     .task-row p {
-        font-size: 20px;
-        margin: 0px;
+        margin: 0;
         margin-top: 4px;
-        vertical-align: center;
+
+        font-size: 16px;
+        color: #374151;
     }
 
     .taskBtn {
         cursor: pointer;
     }
 
+    /* =========================
+       Popup buttons
+       ========================= */
+
     .popup-close {
         position: absolute;
-        right: 2px;
-        top: 2px;
+
+        right: 8px;
+        top: 8px;
+
+        width: 30px;
+        height: 30px;
+
+        padding: 0;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        color: #6b7280;
+
+        background: transparent;
+
+        border: none;
+        border-radius: 8px;
+
+        font-size: 18px;
+
         cursor: pointer;
-        padding: 5px 10px 5px 10px;
-        color: red;
-        background-color: rgba(0, 0, 0, 0);
-        border: 1px solid red;
-        border-radius: 25px;
-        transition: box-shadow 0.15s ease-in-out;
+
+        transition:
+            background 0.15s ease,
+            color 0.15s ease;
     }
 
     .popup-close:hover {
-        box-shadow: 0px 0px 4px rgba(255, 0, 0, 0.6);
+        background: #fee2e2;
+        color: #dc2626;
+        box-shadow: none;
     }
 
     .popup-save {
         margin-top: 10px;
-        padding: 8px 14px 8px 14px;
-        cursor: pointer;
-        background-color: rgb(7, 62, 214);
+
+        padding: 9px 16px;
+
+        background: #2563eb;
         color: white;
+
         border: none;
-        border-radius: 6px;
+        border-radius: 8px;
+
         font-size: 14px;
-        transition: opacity 0.1s ease-in;
+        font-weight: 600;
+
+        cursor: pointer;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
     }
 
     .popup-save:hover {
-        opacity: 0.7;
+        opacity: 1;
+        background: #1d4ed8;
+
+        transform: translateY(-1px);
+
+        box-shadow:
+            0 4px 10px rgba(37, 99, 235, 0.25);
     }
+
+    /* =========================
+       Save button
+       ========================= */
 
     .salvesta-btn {
-        padding: 10px 15px 10px 15px;
-        background-color: rgb(6, 63, 221);
+        padding: 9px 15px;
+
+        background: #2563eb;
         color: white;
+
         border: none;
         border-radius: 8px;
+
+        font-size: 14px;
+        font-weight: 600;
+
         cursor: pointer;
+
+        box-shadow:
+            0 2px 5px rgba(37, 99, 235, 0.20);
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease,
+            box-shadow 0.15s ease;
     }
 
-    .pauseBtn {
-        background-color: yellow;
-        color: white;
-        cursor: pointer;
+    .salvesta-btn:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+
+        box-shadow:
+            0 5px 12px rgba(37, 99, 235, 0.25);
     }
 
-    .resumeBtn {
-        color: white;
-        cursor: pointer;
+    /* =========================
+       Scrollbars
+       ========================= */
+
+    .pdf-content::-webkit-scrollbar {
+        width: 9px;
+    }
+
+    .pdf-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .pdf-content::-webkit-scrollbar-thumb {
+        background: #c4c9d1;
+        border-radius: 10px;
+    }
+
+    .pdf-content::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+
+    /* =========================
+       Responsive layout
+       ========================= */
+
+    @media (max-width: 1000px) {
+        body {
+            padding: 15px;
+        }
+
+        .content {
+            flex-direction: column;
+        }
+
+        .table-content,
+        .task-content {
+            width: 100%;
+        }
+
+        .pdf-section {
+            position: relative;
+            top: 0;
+        }
+
+        .pdf-content {
+            height: 75vh;
+        }
     }
 </style>
 
@@ -398,9 +675,21 @@
     import { DataFetcher } from "./DataFetcher.js";
     import { Order } from "./Order.js";
     import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs";
+    import { FieldManager } from "./FieldManager.js";
 
     pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
+
+    window.addEventListener("message", (event) => {
+        DataFetcher.apiKey = event.data.prodcell_token;
+    });
+
+    if (DataFetcher.apiKey == null) {
+        console.log("Api-Key is NULL, applying default Api-Key");
+        DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
+    } else {
+        console.log("Api-Key successfully obtained!");
+    }
 
     const fetcher = new DataFetcher();
 
@@ -450,8 +739,6 @@
                 }
 
                 refreshButtons();
-
-                console.log(`${Order.selectedOrder.getTNr()}`);
             }
 
             document
@@ -495,135 +782,17 @@
 
         const selectedOrder = Order.selectedOrder;
 
+        let fm = new FieldManager(selectedOrder, fetcher);
+
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
 
-            const page = await pdf.getPage(pageNumber);
+            let pageContainer = await fm.drawFields(pdf, pageNumber);
 
-            const textContent = await page.getTextContent();
+            const page = await pdf.getPage(pageNumber);
 
             const viewport = page.getViewport({
                 scale: 1.5
             });
-
-            const pageContainer = document.createElement("div");
-            pageContainer.style.position = "relative";
-            pageContainer.style.width = `${viewport.width}px`;
-            pageContainer.style.height = `${viewport.height}px`;
-
-            const startIndex = textContent.items.findIndex(item => (item.str.includes("Valmistaja:") && item.transform[5] > 700)) + 2;
-            let endIndex = textContent.items.findIndex(item => (item.str.includes("Katseraport")));
-
-            if (endIndex == -1) {
-                endIndex = textContent.items.length;
-            }
-
-            const found = textContent.items.find(item =>
-                item.str.includes("Tellimus valmis:")
-            );
-
-            if (found && found.transform[5] > 700) {
-
-                const hasTaskFieldsJSON = await fetcher.hasTaskFieldsJSON(selectedOrder.getGuid());
-
-                if (hasTaskFieldsJSON) {
-                    const jsonBytes = await fetcher.getObjectJSONBytes(selectedOrder.getGuid());
-
-                    const jsonString = new TextDecoder().decode(jsonBytes);
-
-                    const fieldsList = JSON.parse(jsonString);
-
-                    for (let fieldObj of fieldsList) {
-                        createField(
-                            pageContainer,
-                            fieldObj.x,
-                            fieldObj.y,
-                            fieldObj.value
-                        );
-
-                        if (fieldObj.value.includes("Pakime")) {
-                            await createSalvestaButton(fieldObj.x - 7, fieldObj.y + 15, pageContainer, fetcher);
-                        }
-                    }
-
-                } else {
-                    let cleanedItems = textContent.items.slice(startIndex, endIndex);
-                    for (let item of cleanedItems) {
-                        const tx = pdfjsLib.Util.transform(
-                            viewport.transform,
-                            item.transform
-                        );
-
-                        createField(
-                            pageContainer,
-                            tx[4],
-                            tx[5],
-                            item.str
-                        );
-
-                        if (item.str.includes("Pakime")) {
-                            await createSalvestaButton(tx[4] - 7, tx[5] + 15, pageContainer, fetcher);
-                        }
-
-                    }
-                }
-
-                /*
-                textContent.items.forEach(item => {
-                    const tx = pdfjsLib.Util.transform(
-                        viewport.transform,
-                        item.transform
-                    );
-
-                    createField(
-                        pageContainer,
-                        tx[4],
-                        tx[5],
-                        item.str
-                    );
-
-                    if (item.str.includes("Pakime")) {
-                        await createSalvestaButton(tx[4] - 7, tx[5] + 15, pageContainer, fetcher);
-                        
-                        let salvestaBtn = createButton(
-                            pageContainer,
-                            tx[4] - 7,
-                            tx[5] + 15,
-                            "salvesta-btn",
-                            "Salvesta"
-                        );
-                        salvestaBtn.addEventListener("click", async () => {
-                            const allFields = document.querySelectorAll(".task-field");
-
-                            let fieldsList = [];
-
-                            for (const field of allFields) {
-                                console.log(field.value);
-
-                                const x = parseFloat(field.style.left);
-                                const y = parseFloat(field.style.top);
-
-                                fieldsList.push({
-                                    "value": field.value,
-                                    "x": x,
-                                    "y": y
-                                });
-
-                            }
-                            const jsonFields = JSON.stringify(fieldsList, null, 4);
-                            const jsonBytes = new TextEncoder().encode(jsonFields);
-
-                            if (!(await fetcher.hasTaskFields(selectedOrder.getGuid()))) {
-                                await fetcher.createJsonFile(selectedOrder.getGuid(), jsonBytes);
-                            } else {
-                                await fetcher.replaseJsonFile(selectedOrder.getGuid(), await fetcher.getOrderFileGUID(selectedOrder, "taskFields"), jsonBytes);
-                            }
-                        });
-                        
-                    }
-
-                });
-                */
-            }
 
             viewer.appendChild(pageContainer);
 
@@ -659,15 +828,14 @@
             let fieldsList = [];
 
             for (const field of allFields) {
-                console.log(field.value);
 
-                const x = parseFloat(field.style.left);
-                const y = parseFloat(field.style.top) + 24;
+                const fieldX = parseFloat(field.style.left);
+                const fieldY = parseFloat(field.style.top) + 24;
 
                 fieldsList.push({
                     "value": field.value,
-                    "x": x,
-                    "y": y
+                    "x": fieldX,
+                    "y": fieldY
                 });
 
             }
@@ -677,7 +845,6 @@
             if (!(await fetcher.hasTaskFieldsJSON(selectedOrder.getGuid()))) {
                 await fetcher.createJsonFile(selectedOrder.getGuid(), jsonBytes);
             } else {
-                console.log(selectedOrder.getGuid());
                 await fetcher.replaceJsonFile(selectedOrder.getGuid(), await fetcher.getOrderFileGUID(selectedOrder.getGuid(), "taskFields"), jsonBytes);
             }
         });
@@ -710,6 +877,52 @@
         input.style.width = `${inputWidth}px`;
 
         input.value = text;
+
+        container.appendChild(input);
+    }
+
+    function createFieldWithWidth(container, x, y, text, width) {
+
+        if (!text || text.trim() === "") return;
+
+        const input = document.createElement("input");
+
+        input.type = "text";
+
+        input.style.position = "absolute";
+        input.style.left = `${x}px`;
+        input.style.top = `${y - 24}px`;
+        input.style.fontSize = `18px`;
+        input.style.borderRadius = "8px";
+        input.style.border = "1px solid black";
+        input.style.height = "25px";
+        input.className = "task-field";
+
+        let inputWidth = width;
+
+        input.style.width = `${inputWidth}px`;
+
+
+
+        container.appendChild(input);
+    }
+
+    function createCheckbox(container, x, y) {
+
+        const input = document.createElement("input");
+
+        input.type = "checkbox";
+
+        input.style.position = "absolute";
+        input.style.left = `${x}px`;
+        input.style.top = `${y - 24}px`;
+        input.style.fontSize = `18px`;
+        input.style.borderRadius = "8px";
+        input.style.border = "1px solid black";
+        input.style.height = "25px";
+        input.className = "task-field";
+
+        input.style.width = `25px`;
 
         container.appendChild(input);
     }

@@ -41,6 +41,8 @@ export let data = [
 
 export class DataFetcher {
 
+    static apiKey = null;
+
     async getObjects(objectName) {
         const url = new URL(
             `https://keraplast.prodcell.com/api/objects/${objectName}?limit=1000`
@@ -49,7 +51,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             }
         });
@@ -64,6 +66,8 @@ export class DataFetcher {
         const orders = ordersJSON.data;
 
         for (const order of orders) {
+
+            //await this.deleteOrderFile(order.guid, "taskFields");
 
             const guid = order.guid;
             const t_nr = order.number;
@@ -93,7 +97,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             }
         });
@@ -130,7 +134,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             }
         });
@@ -152,7 +156,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             }
         });
@@ -169,7 +173,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             }
         });
@@ -197,7 +201,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "POST",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             },
             body: jsonBytes
@@ -212,7 +216,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "POST",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
                 "Accept": "application/json"
             },
             body: jsonBytes
@@ -228,7 +232,7 @@ export class DataFetcher {
         const response = await fetch(url, {
             method: "GET",
             headers: {
-                "X-API-KEY": "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl",
+                "X-API-KEY": DataFetcher.apiKey,
             }
         });
 
@@ -284,6 +288,23 @@ export class DataFetcher {
                 return fileObj;
             }
         }
+    }
+
+    async deleteOrderFile(guid, fileName) {
+
+        let fGUID = await this.getOrderFileGUID(guid, fileName);
+
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files/${fGUID}`
+        );
+
+        const response = await fetch(url, {
+            method: "DELETE",
+            headers: {
+                "X-API-KEY": DataFetcher.apiKey,
+            }
+        });
+
     }
 
 
