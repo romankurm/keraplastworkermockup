@@ -680,20 +680,26 @@
     pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
 
-    window.addEventListener("message", (event) => {
-        DataFetcher.apiKey = event.data.prodcell_token;
+    console.log("Trying to obtain Api-Key...");
 
-        if (DataFetcher.apiKey == null) {
-            console.log("Api-Key is NULL, applying default Api-Key");
-            DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
-        } else {
-            console.log("Api-Key successfully obtained!");
-        }
+    const apiKeyObtainment = new Promise((resolve) => {
+        window.addEventListener("message", (event) => {
+            DataFetcher.apiKey = event.data.prodcell_token;
 
+            if (DataFetcher.apiKey == null) {
+                console.log("Api-Key is NULL, applying default Api-Key");
+                DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
+            } else {
+                console.log("Api-Key successfully obtained!");
+            }
+
+            resolve();
+
+        });
     });
 
     // CAN'T WORK WITHOUT API KEY
-    while (DataFetcher.apiKey == null) { }
+    await apiKeyObtainment;
 
     const fetcher = new DataFetcher();
 
