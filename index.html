@@ -682,14 +682,15 @@
 
     window.addEventListener("message", (event) => {
         DataFetcher.apiKey = event.data.prodcell_token;
-    });
 
-    if (DataFetcher.apiKey == null) {
-        console.log("Api-Key is NULL, applying default Api-Key");
-        DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
-    } else {
-        console.log("Api-Key successfully obtained!");
-    }
+        if (DataFetcher.apiKey == null) {
+            console.log("Api-Key is NULL, applying default Api-Key");
+            DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
+        } else {
+            console.log("Api-Key successfully obtained!");
+        }
+
+    });
 
     const fetcher = new DataFetcher();
 
