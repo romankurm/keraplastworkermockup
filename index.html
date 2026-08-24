@@ -692,6 +692,9 @@
 
     });
 
+    // CAN'T WORK WITHOUT API KEY
+    while (DataFetcher.apiKey == null) { }
+
     const fetcher = new DataFetcher();
 
     const orders = await fetcher.getOrders();
