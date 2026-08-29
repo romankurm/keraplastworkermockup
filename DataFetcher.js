@@ -307,5 +307,79 @@ export class DataFetcher {
 
     }
 
+    async getMyInfo() {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/me`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": DataFetcher.apiKey,
+                "Accept": "application/json"
+            }
+        });
+
+        return await response.json();
+
+    }
+
+    async getMyRoles() {
+        let infoJSON = await this.getMyInfo();
+
+        let roles = infoJSON.user.roles;
+
+        return roles;
+    }
+
+    async startOperation(order_guid, operation_type) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/orders/${order_guid}/create_task?operation=${operation_type}`
+        );
+
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "X-API-KEY": DataFetcher.apiKey,
+            }
+        });
+    }
+
+    async getOrderOperations(order_guid) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/orders/${order_guid}/tasks`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": DataFetcher.apiKey,
+            }
+        });
+    }
+
+    async getOrderSpecificOperations(order_guid, role) {
+        const url = new URL(
+            `https://keraplast.prodcell.com/api/orders/${order_guid}/tasks`
+        );
+
+        const response = await fetch(url, {
+            method: "GET",
+            headers: {
+                "X-API-KEY": DataFetcher.apiKey,
+                "operation": this.getOperationForRole(role)
+            }
+        });
+    }
+
+    async hasOrderSpecificOperation(order_guid, role) {
+        return this.getOrderSpecificOperations(order_guid, role);
+    }
+
+    getOperationForRole(role) {
+        switch (role) {
+            case "ROLE_ADMIN": return "L";
+        }
+    }
 
 };

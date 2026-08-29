@@ -53,18 +53,63 @@
        Section title
        ========================= */
 
-    .amet {
-        height: 60px;
-        margin: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    /* =========================
+   Compact role dropdown
+   ========================= */
 
-        font-size: 24px;
-        font-weight: 700;
-        letter-spacing: -0.3px;
+    #amet {
+        width: fit-content;
+        min-width: 180px;
+        height: 38px;
+
+        margin: 0 0 14px 2px;
+        padding: 0 30px 0 2px;
+
+        appearance: none;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+
+        background-color: transparent;
+
+        border: none;
+        border-bottom: 1px solid #d1d5db;
+        border-radius: 0;
+
+        color: #374151;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 600;
+
+        cursor: pointer;
+
+        outline: none;
+
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 4px center;
+        background-size: 14px;
+
+        transition:
+            border-color 0.15s ease,
+            color 0.15s ease;
+    }
+
+    #amet:hover {
+        border-bottom-color: #9ca3af;
         color: #111827;
     }
+
+    #amet:focus {
+        border-bottom-color: #2563eb;
+        box-shadow: 0 1px 0 #2563eb;
+    }
+
+    #amet option {
+        background: #ffffff;
+        color: #1f2937;
+        font-size: 15px;
+    }
+
 
     /* =========================
        Task table
@@ -613,7 +658,7 @@
 <body>
     <div class="content">
         <div class="table-content">
-            <p class="amet">L&otilde;ikamine</p>
+            <select name="" id="amet" class="amet"></select>
             <table class="task-table">
                 <thead>
                     <tr>
@@ -693,15 +738,45 @@
                 console.log("Api-Key successfully obtained!");
             }
 
-            resolve();
+            resolve("api-key");
 
         });
     });
 
-    // CAN'T WORK WITHOUT API KEY
-    await apiKeyObtainment;
+    const timeout = new Promise((resolve) => {
+        setTimeout(() => {
+            resolve("timeout")
+        }, 5000);
+    });
+
+    const result = await Promise.race([apiKeyObtainment, timeout]);
+
+    if (result == "timeout") {
+        console.log("Api-Key wasn't obtained within 5 seconds, applying default Api-Key.")
+        DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
+    }
 
     const fetcher = new DataFetcher();
+
+    let roles = await fetcher.getMyRoles();
+
+    let ametEl = document.getElementById("amet");
+
+    roles.forEach((role) => {
+        const optionElement = document.createElement("option");
+
+        let roleString = "";
+
+        switch (role) {
+            case "ROLE_ADMIN": roleString = "Administraator";
+                break;
+        }
+
+        optionElement.textContent = roleString;
+        optionElement.value = role;
+
+        ametEl.appendChild(optionElement);
+    });
 
     const orders = await fetcher.getOrders();
 
@@ -749,6 +824,7 @@
                 }
 
                 refreshButtons();
+                console.log(fetcher.getOperationForRole(getCurrentRole()));
             }
 
             document
@@ -819,122 +895,6 @@
                 viewport: viewport
             }).promise;
         }
-    }
-
-    async function createSalvestaButton(x, y, pageContainer, fetcher) {
-
-        const selectedOrder = Order.selectedOrder;
-
-        let salvestaBtn = createButton(
-            pageContainer,
-            x,
-            y,
-            "salvesta-btn",
-            "Salvesta"
-        );
-        salvestaBtn.addEventListener("click", async () => {
-            const allFields = document.querySelectorAll(".task-field");
-
-            let fieldsList = [];
-
-            for (const field of allFields) {
-
-                const fieldX = parseFloat(field.style.left);
-                const fieldY = parseFloat(field.style.top) + 24;
-
-                fieldsList.push({
-                    "value": field.value,
-                    "x": fieldX,
-                    "y": fieldY
-                });
-
-            }
-            const jsonFields = JSON.stringify(fieldsList, null, 4);
-            const jsonBytes = new TextEncoder().encode(jsonFields);
-
-            if (!(await fetcher.hasTaskFieldsJSON(selectedOrder.getGuid()))) {
-                await fetcher.createJsonFile(selectedOrder.getGuid(), jsonBytes);
-            } else {
-                await fetcher.replaceJsonFile(selectedOrder.getGuid(), await fetcher.getOrderFileGUID(selectedOrder.getGuid(), "taskFields"), jsonBytes);
-            }
-        });
-    }
-
-
-    function createField(container, x, y, text) {
-
-        if (!text || text.trim() === "") return;
-
-        const input = document.createElement("input");
-
-        input.type = "text";
-
-        input.style.position = "absolute";
-        input.style.left = `${x}px`;
-        input.style.top = `${y - 24}px`;
-        input.style.fontSize = `18px`;
-        input.style.borderRadius = "8px";
-        input.style.border = "1px solid black";
-        input.style.height = "25px";
-        input.className = "task-field";
-
-        let inputWidth = text.length * 14;
-
-        if (inputWidth > 330) {
-            inputWidth = 330;
-        }
-
-        input.style.width = `${inputWidth}px`;
-
-        input.value = text;
-
-        container.appendChild(input);
-    }
-
-    function createFieldWithWidth(container, x, y, text, width) {
-
-        if (!text || text.trim() === "") return;
-
-        const input = document.createElement("input");
-
-        input.type = "text";
-
-        input.style.position = "absolute";
-        input.style.left = `${x}px`;
-        input.style.top = `${y - 24}px`;
-        input.style.fontSize = `18px`;
-        input.style.borderRadius = "8px";
-        input.style.border = "1px solid black";
-        input.style.height = "25px";
-        input.className = "task-field";
-
-        let inputWidth = width;
-
-        input.style.width = `${inputWidth}px`;
-
-
-
-        container.appendChild(input);
-    }
-
-    function createCheckbox(container, x, y) {
-
-        const input = document.createElement("input");
-
-        input.type = "checkbox";
-
-        input.style.position = "absolute";
-        input.style.left = `${x}px`;
-        input.style.top = `${y - 24}px`;
-        input.style.fontSize = `18px`;
-        input.style.borderRadius = "8px";
-        input.style.border = "1px solid black";
-        input.style.height = "25px";
-        input.className = "task-field";
-
-        input.style.width = `25px`;
-
-        container.appendChild(input);
     }
 
     function createButton(container, x, y, className, value) {
@@ -1063,18 +1023,19 @@
         const startBtn = document.getElementById("startBtn");
         const endBtn = document.getElementById("endBtn");
 
-
         startBtn.addEventListener("click", async () => {
-            await Order.selectedOrder.setStatus("W")
-            await Order.selectedOrder.startTask();
+
+            await fetcher.startOperation(Order.selectedOrder.getGuid(), fetcher.getOperationForRole(getCurrentRole()));
+
             disableButton("startBtn");
             enableButton("endBtn");
 
             createToggleButton();
         });
         endBtn.addEventListener("click", async () => {
-            await Order.selectedOrder.setStatus("D")
-            await Order.selectedOrder.endTask();
+
+
+
             disableButton("endBtn");
 
             if (existsToggleButton()) {
@@ -1096,6 +1057,9 @@
     }
 
     function refreshButtons() {
+
+        const currentRole = getCurrentRole();
+
         if (Order.selectedOrder.getStatus() == "W") {
             disableButton("startBtn");
             enableButton("endBtn");
@@ -1108,6 +1072,10 @@
             disableButton("endBtn");
             deleteElement("toggleBtn");
         }
+    }
+
+    function getCurrentRole() {
+        return document.getElementById("amet").value;
     }
 
 </script>
