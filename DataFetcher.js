@@ -1,62 +1,51 @@
 import { Order } from "./Order.js";
-
-export let data = [
-    {
-        t_nr: "T1221",
-        material: "P",
-        so_nr: 4042,
-        client: "EhitusFirma",
-        object: "Ehitusplats",
-        order_task: "23/01: 1200*2400 750/70 RR20/Zn",
-        amount: 5,
-        state: "lnpk",
-        status: "active",
-        completion_date: null
-    },
-    {
-        t_nr: "T1231",
-        material: "P",
-        so_nr: 4043,
-        client: "Lammutusfirma",
-        object: "Lammutusplats",
-        order_task: "23/01/K: 1000*1000 300/70 Zn/Zn 500N:1tk",
-        amount: 1,
-        state: "p",
-        status: "done",
-        completion_date: "2026-05-24"
-    },
-    {
-        t_nr: "T1331",
-        material: "P",
-        so_nr: 4044,
-        client: "LaheFirma",
-        object: "Lahe koht ehitamiseks",
-        order_task: "23/PC: 1200*1200 850/70 RR20/RR23",
-        amount: 2,
-        state: "pk",
-        status: "active",
-        completion_date: null
-    },
-];
+import { Task } from "./Task.js";
 
 export class DataFetcher {
 
     static apiKey = null;
 
-    async getObjects(objectName) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/${objectName}?limit=1000`
-        );
+    // Prodcell posts its own API root in via postMessage (prodcell_api_url), so the
+    // board follows whichever tenant embeds it instead of pinning one host.
+    static apiBase = "https://keraplast.prodcell.com/api";
 
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
-        });
+    static setApiBase(url) {
+        if (!url) return;
+        DataFetcher.apiBase = String(url).replace(/\/+$/, "");
+    }
 
-        return await response.json();
+    async request(path, options = {}) {
+        if (!DataFetcher.apiKey) {
+            throw new Error("API key puudub, tahvel ei saa Prodcelliga ühendust.");
+        }
+
+        const headers = {
+            "X-API-KEY": DataFetcher.apiKey,
+            "Accept": "application/json",
+            ...(options.headers || {})
+        };
+
+        const response = await fetch(`${DataFetcher.apiBase}${path}`, { ...options, headers });
+
+        if (options.raw) return response;
+
+        let payload = null;
+        try {
+            payload = await response.json();
+        } catch (e) {
+            payload = null;
+        }
+
+        if (!response.ok || (payload && payload.error)) {
+            const message = (payload && (payload.error || payload.message)) || response.statusText;
+            throw new Error(`${options.method || "GET"} ${path}: ${message}`);
+        }
+
+        return payload;
+    }
+
+    async getObjects(objectName, params = "") {
+        return await this.request(`/objects/${objectName}?limit=1000${params}`);
     }
 
     async getOrders() {
@@ -67,21 +56,9 @@ export class DataFetcher {
 
         for (const order of orders) {
 
-            //await this.deleteOrderFile(order.guid, "taskFields");
+            const ordr = DataFetcher.orderFromJSON(order);
 
-            const guid = order.guid;
-            const t_nr = order.number;
-            const so_nr = order.invoiceNumber;
-            const client = order.clientName;
-            const amount = order.productQuantity;
-            const task = order.productSpec;
-            const material = order.material;
-            const comments = order.comments;
-            const status = order.status;
-
-            let ordr = new Order(guid, t_nr, so_nr, client, amount, task, material, "test.pdf", comments, status);
-
-            if (task != null)
+            if (ordr.getTask() != null)
                 newOrders.push(ordr);
 
         }
@@ -89,22 +66,120 @@ export class DataFetcher {
         return newOrders;
     }
 
-    async getObjectPDFGuid(object_id) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${object_id}/files`
+    static orderFromJSON(order) {
+        return new Order(
+            order.guid,
+            order.number,
+            order.invoiceNumber,
+            order.clientName,
+            order.productQuantity,
+            order.productSpec,
+            order.material,
+            null,
+            order.comments,
+            order.status
         );
+    }
 
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
+    /**
+     * Production operations as configured in Prodcell. Operation.id IS the code
+     * ("L", "N", "P", "K"), so the board never hard-codes the operation set -
+     * only the order they run in, which the API does not carry.
+     */
+    async getOperations(sequence = []) {
+        const json = await this.getObjects("Operation");
+        const all = (json.data || []).map(op => ({
+            id: op.id,
+            code: String(op.id || "").trim(),
+            // The API serialises the localised columns, not a resolved "name".
+            name: (op.nameEt || op.name || op.nameEn || op.fullName || op.id || "").trim(),
+            department: (op.department && op.department.id) || op.department || null
+        }));
+
+        // Keraplast's board is about L/N/P/K; anything else in the Operation
+        // table belongs to another tenant or another process. Fall back to the
+        // full list if the configured sequence matches nothing.
+        const wanted = all.filter(op => sequence.includes(op.code));
+        const operations = wanted.length ? wanted : all;
+
+        const rank = code => {
+            const i = sequence.indexOf(code);
+            return i === -1 ? sequence.length : i;
+        };
+
+        operations.sort((a, b) => {
+            const ra = rank(a.code), rb = rank(b.code);
+            if (ra !== rb) return ra - rb;
+            return a.code.localeCompare(b.code);
         });
 
-        let responseJson = await response.json();
+        return operations;
+    }
 
-        let responseDataList = responseJson["data"];
+    /**
+     * Every task the current key may read, indexed by order GUID and operation id.
+     * The tasks API has no order filter, so one wide read beats one call per row.
+     */
+    async getTasks() {
+        const json = await this.request(`/tasks?limit=10000`);
+        return (json.data || []).map(t => new Task(
+            t.guid,
+            t.operation,
+            t.status,
+            t.realStart,
+            t.order,
+            t.operationName,
+            t.realEnd
+        ));
+    }
+
+    async getTasksByOrder() {
+        const byOrder = new Map();
+        for (const task of await this.getTasks()) {
+            if (!task.order) continue;
+            if (!byOrder.has(task.order)) byOrder.set(task.order, []);
+            byOrder.get(task.order).push(task);
+        }
+        return byOrder;
+    }
+
+    /**
+     * Create the Task that carries one operation of one order.
+     */
+    async createTask(orderGuid, operationId) {
+        const json = await this.request(
+            `/orders/${orderGuid}/create_task?operation=${encodeURIComponent(operationId)}`,
+            { method: "POST" }
+        );
+        const t = json.data || json;
+        return new Task(
+            t.guid,
+            typeof t.operation === "object" && t.operation ? t.operation.id : t.operation,
+            t.status,
+            t.realStart,
+            t.order,
+            t.operationName,
+            t.realEnd
+        );
+    }
+
+    /**
+     * start | pause | resume | end on one task. This is what actually books work
+     * per operation; the order-level route can only ever touch a single task.
+     */
+    async taskOperation(taskGuid, operation, performance = {}) {
+        const json = await this.request(`/tasks/${taskGuid}/${operation}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(performance)
+        });
+        const t = json.data || json;
+        return new Task(t.guid, t.operation, t.status, t.realStart, t.order, t.operationName, t.realEnd);
+    }
+
+    async getObjectPDFGuid(object_id) {
+
+        const responseDataList = (await this.getOrderFilesList(object_id)) || [];
 
         if (responseDataList.length === 0)
             return null;
@@ -112,7 +187,7 @@ export class DataFetcher {
         for (let dataObj of responseDataList) {
 
             if (dataObj["name"] == null)
-                    continue;
+                continue;
 
             if (dataObj["name"].includes("pdf"))
                 return dataObj["guid"];
@@ -127,17 +202,10 @@ export class DataFetcher {
 
         if (pdf_guid == null) return null;
 
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${object_id}/files/${pdf_guid}/download`
+        const response = await this.request(
+            `/objects/Order/${object_id}/files/${pdf_guid}/download`,
+            { raw: true }
         );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
-        });
 
         return await response.arrayBuffer();
 
@@ -149,237 +217,74 @@ export class DataFetcher {
 
         if (json_guid == null) return null;
 
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${object_id}/files/${json_guid}/download`
+        const response = await this.request(
+            `/objects/Order/${object_id}/files/${json_guid}/download`,
+            { raw: true }
         );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
-        });
 
         return await response.arrayBuffer();
 
     }
 
     async getOrderByGUID(guid) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${guid}`
-        );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
-        });
-
-        const orderJSON = await response.json();
-
-        const o_guid = orderJSON.guid;
-        const t_nr = orderJSON.number;
-        const so_nr = orderJSON.invoiceNumber;
-        const client = orderJSON.clientName;
-        const amount = orderJSON.productQuantity;
-        const task = orderJSON.productSpec;
-        const material = orderJSON.material;
-        const comments = orderJSON.comments;
-        const status = orderJSON.status;
-
-        return new Order(o_guid, t_nr, so_nr, client, amount, task, material, null, comments, status);
+        const orderJSON = await this.request(`/objects/Order/${guid}`);
+        return DataFetcher.orderFromJSON(orderJSON.data || orderJSON);
     }
 
     async createJsonFile(guid, jsonBytes) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files?name=taskFields&mimetype=application/json`
+        return await this.request(
+            `/objects/Order/${guid}/files?name=taskFields&mimetype=application/json`,
+            { method: "POST", body: jsonBytes }
         );
-
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            },
-            body: jsonBytes
-        });
     }
 
     async replaceJsonFile(order_guid, file_guid, jsonBytes) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${order_guid}/files/${file_guid}?name=taskFields&mimetype=application/json`
+        return await this.request(
+            `/objects/Order/${order_guid}/files/${file_guid}?name=taskFields&mimetype=application/json`,
+            { method: "POST", body: jsonBytes }
         );
-
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            },
-            body: jsonBytes
-        });
     }
 
     async getOrderFilesList(guid) {
-
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files?deleted=0`
-        );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-            }
-        });
-
-        const orderFileListJSON = await response.json();
-
-        const fileList = orderFileListJSON.data;
-
-        return fileList;
-
+        const orderFileListJSON = await this.request(`/objects/Order/${guid}/files?deleted=0`);
+        return orderFileListJSON.data || [];
     }
 
     async hasTaskFieldsJSON(guid) {
-
-        const fileList = await this.getOrderFilesList(guid);
-
-        if (fileList == null) return;
-        if (fileList.length == 0) return;
-
-        for (let fileObj of fileList) {
-            const fileName = fileObj.name;
-            if (fileName == "taskFields")
-                return true;
-        }
-
-        return false;
-
+        return (await this.getOrderFileGUID(guid, "taskFields")) != null;
     }
 
     async getOrderFileGUID(guid, fileName) {
         const filesList = await this.getOrderFilesList(guid);
 
-        if (filesList.length != 0) {
-
-            for (const fileObj of filesList) {
-                const fName = fileObj.name;
-
-                if (fName == fileName) {
-                    const fileGuid = fileObj.guid;
-                    return fileGuid;
-                }
-            }
-
-        }
-    }
-
-    async getTaskFieldsJSON(guid) {
-        const fileList = await this.getOrderFilesList(guid);
-
-        for (const fileObj of fileList) {
-            const fName = fileObj.name;
-
-            if (fName == "taskFields") {
-                return fileObj;
+        for (const fileObj of filesList) {
+            if (fileObj.name == fileName) {
+                return fileObj.guid;
             }
         }
+
+        return null;
     }
 
     async deleteOrderFile(guid, fileName) {
 
         let fGUID = await this.getOrderFileGUID(guid, fileName);
 
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/objects/Order/${guid}/files/${fGUID}`
+        if (fGUID == null) return;
+
+        return await this.request(
+            `/objects/Order/${guid}/files/${fGUID}`,
+            { method: "DELETE" }
         );
-
-        const response = await fetch(url, {
-            method: "DELETE",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-            }
-        });
-
     }
 
     async getMyInfo() {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/me`
-        );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "Accept": "application/json"
-            }
-        });
-
-        return await response.json();
-
+        return await this.request(`/me`);
     }
 
     async getMyRoles() {
         let infoJSON = await this.getMyInfo();
-
-        let roles = infoJSON.user.roles;
-
-        return roles;
-    }
-
-    async startOperation(order_guid, operation_type) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/orders/${order_guid}/create_task?operation=${operation_type}`
-        );
-
-        const response = await fetch(url, {
-            method: "POST",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-            }
-        });
-    }
-
-    async getOrderOperations(order_guid) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/orders/${order_guid}/tasks`
-        );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-            }
-        });
-    }
-
-    async getOrderSpecificOperations(order_guid, role) {
-        const url = new URL(
-            `https://keraplast.prodcell.com/api/orders/${order_guid}/tasks`
-        );
-
-        const response = await fetch(url, {
-            method: "GET",
-            headers: {
-                "X-API-KEY": DataFetcher.apiKey,
-                "operation": this.getOperationForRole(role)
-            }
-        });
-    }
-
-    async hasOrderSpecificOperation(order_guid, role) {
-        return this.getOrderSpecificOperations(order_guid, role);
-    }
-
-    getOperationForRole(role) {
-        switch (role) {
-            case "ROLE_ADMIN": return "L";
-        }
+        return (infoJSON && infoJSON.user && infoJSON.user.roles) || [];
     }
 
 };

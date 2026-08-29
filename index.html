@@ -653,31 +653,163 @@
             height: 75vh;
         }
     }
+
+    /* =========================
+       Operation groups
+       ========================= */
+
+    .group-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        margin: 22px 2px 8px 2px;
+
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        color: #6b7280;
+    }
+
+    .group-title:first-of-type {
+        margin-top: 6px;
+    }
+
+    .group-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        min-width: 22px;
+        height: 22px;
+        padding: 0 7px;
+
+        background: #e5e7eb;
+        color: #374151;
+
+        border-radius: 11px;
+
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0;
+    }
+
+    .group-working .group-count {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .group-done .group-count {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .group-empty {
+        margin: 0 2px 8px 2px;
+        font-size: 14px;
+        color: #9ca3af;
+    }
+
+    .task-table + .group-title {
+        margin-top: 26px;
+    }
+
+    /* =========================
+       Operation chain (L N P K)
+       ========================= */
+
+    .chain {
+        display: inline-flex;
+        gap: 4px;
+    }
+
+    .chain-step {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+
+        width: 26px;
+        height: 26px;
+
+        border-radius: 7px;
+        border: 1px solid #e5e7eb;
+
+        background: #f9fafb;
+        color: #9ca3af;
+
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .chain-step.is-done {
+        background: #16a34a;
+        border-color: #16a34a;
+        color: #ffffff;
+    }
+
+    .chain-step.is-working {
+        background: #f59e0b;
+        border-color: #f59e0b;
+        color: #ffffff;
+    }
+
+    .chain-step.is-paused {
+        background: #fde68a;
+        border-color: #f59e0b;
+        color: #92400e;
+    }
+
+    .chain-step.is-current {
+        outline: 2px solid #2563eb;
+        outline-offset: 1px;
+    }
+
+    /* =========================
+       Board status line
+       ========================= */
+
+    .board-status {
+        min-height: 22px;
+        margin: 0 2px 10px 2px;
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    .board-status.is-error {
+        color: #b91c1c;
+        font-weight: 600;
+    }
+
+    .selected-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+
+        font-size: 14px;
+        color: #374151;
+    }
+
+    .selected-line strong {
+        color: #111827;
+    }
+
+    .resumeBtn {
+        background: #16a34a;
+    }
 </style>
 
 <body>
     <div class="content">
         <div class="table-content">
             <select name="" id="amet" class="amet"></select>
-            <table class="task-table">
-                <thead>
-                    <tr>
-                        <td width="80">T Nr.</td>
-                        <td width="30">Mat.</td>
-                        <td width="50">SO</td>
-                        <td width="170">Klient</td>
-                        <td width="">T&ouml;&ouml;k&auml;sk</td>
-                        <td>Kogus</td>
-                    </tr>
-                </thead>
-                <tbody>
-
-                </tbody>
-            </table>
+            <div class="board-status" id="boardStatus"></div>
+            <div id="groups"></div>
         </div>
         <div class="task-content">
             <div class="pdf-section">
                 <div class="action-content">
+                    <div class="selected-line" id="selectedLine"></div>
                     <div class="buttons-section" id="buttons-section">
                         <button id="startBtn" class="startBtn">Alusta <svg xmlns="http://www.w3.org/2000/svg" width="16"
                                 height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -686,6 +818,8 @@
                                 <path
                                     d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528" />
                             </svg></button>
+
+                        <button id="toggleBtn" class="pauseBtn">Peata</button>
 
                         <button id="endBtn" class="endBtn">L&otilde;peta <svg xmlns="http://www.w3.org/2000/svg"
                                 width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -701,7 +835,7 @@
                 <div class="pdf-wrapper">
                     <div class="pdf-content" id="pdfContainer">
                         <button id="fullscreenBtn" class="fullscreen-btn">
-                            ⛶
+                            &#9906;
                         </button>
                         <div id="pdfViewer"></div>
                     </div>
@@ -719,142 +853,349 @@
 
     import { DataFetcher } from "./DataFetcher.js";
     import { Order } from "./Order.js";
+    import { Task } from "./Task.js";
     import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs";
     import { FieldManager } from "./FieldManager.js";
 
     pdfjsLib.GlobalWorkerOptions.workerSrc =
         "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs";
 
-    console.log("Trying to obtain Api-Key...");
+    // Keraplast runs L -> N -> P -> K. Prodcell stores the operation code as
+    // Operation.id but carries no ordering, so the running order lives here.
+    // Operations outside this list are appended after it.
+    const OPERATION_SEQUENCE = ["L", "N", "P", "K"];
 
-    const apiKeyObtainment = new Promise((resolve) => {
-        window.addEventListener("message", (event) => {
-            DataFetcher.apiKey = event.data.prodcell_token;
+    const REFRESH_MS = 10000;
+    const HANDSHAKE_TIMEOUT_MS = 5000;
 
-            if (DataFetcher.apiKey == null) {
-                console.log("Api-Key is NULL, applying default Api-Key");
-                DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
-            } else {
-                console.log("Api-Key successfully obtained!");
-            }
+    const state = {
+        operations: [],
+        operationId: null,
+        orders: [],
+        tasksByOrder: new Map(),
+        selectedGuid: null,
+        busy: false
+    };
 
-            resolve("api-key");
-
-        });
-    });
-
-    const timeout = new Promise((resolve) => {
-        setTimeout(() => {
-            resolve("timeout")
-        }, 5000);
-    });
-
-    const result = await Promise.race([apiKeyObtainment, timeout]);
-
-    if (result == "timeout") {
-        console.log("Api-Key wasn't obtained within 5 seconds, applying default Api-Key.")
-        DataFetcher.apiKey = "nW1gnRO8SUWVuqhGN5V9xH05PiGTNtdl";
-    }
+    const els = {
+        amet: document.getElementById("amet"),
+        status: document.getElementById("boardStatus"),
+        groups: document.getElementById("groups"),
+        selected: document.getElementById("selectedLine"),
+        startBtn: document.getElementById("startBtn"),
+        toggleBtn: document.getElementById("toggleBtn"),
+        endBtn: document.getElementById("endBtn"),
+        pdfContainer: document.getElementById("pdfContainer"),
+        pdfViewer: document.getElementById("pdfViewer"),
+        fullscreenBtn: document.getElementById("fullscreenBtn")
+    };
 
     const fetcher = new DataFetcher();
 
-    let roles = await fetcher.getMyRoles();
+    await boot();
 
-    let ametEl = document.getElementById("amet");
+    /* =========================================================
+       Boot
+       ========================================================= */
 
-    roles.forEach((role) => {
-        const optionElement = document.createElement("option");
+    async function boot() {
 
-        let roleString = "";
-
-        switch (role) {
-            case "ROLE_ADMIN": roleString = "Administraator";
-                break;
-        }
-
-        optionElement.textContent = roleString;
-        optionElement.value = role;
-
-        ametEl.appendChild(optionElement);
-    });
-
-    const orders = await fetcher.getOrders();
-
-    Order.currentOrders = orders;
-
-    await setupButtonEvents();
-
-    let task_table = document.getElementById("task-table");
-
-    let table_body = document.querySelector(".task-table tbody");
-
-    for (let i = 0; i < orders.length; ++i) {
-
-        const order = orders[i];
-
-        if (order.containsComment("valmis"))
-            continue;
-        if (order.isRemoved())
-            continue;
-
-        let pdfBytes = null;
-
-        let table_row = document.createElement("tr");
-
-        table_row.innerHTML = `
-            <td>${order.getTNr()}</td>
-            <td>${order.getMaterial()}</td>
-            <td>${order.getSoNr()}</td>
-            <td>${order.getClient()}</td>
-            <td>${order.getTask()}</td>
-            <td>${Math.trunc(order.getAmount())}</td>
-        `;
-
-        table_row.id = order.getGuid();
-
-        table_row.addEventListener("click", async () => {
-
-            if (!table_row.classList.contains("selected")) {
-                pdfBytes = await fetcher.getObjectPDFBytes(order.getGuid());
-
-                Order.selectedOrder = await fetcher.getOrderByGUID(order.getGuid());
-
-                if (pdfBytes) {
-                    await loadPdf(pdfBytes);
-                }
-
-                refreshButtons();
-                console.log(fetcher.getOperationForRole(getCurrentRole()));
-            }
-
-            document
-                .querySelectorAll(".task-table tbody tr")
-                .forEach(row => row.classList.remove("selected"));
-
-            table_row.classList.add("selected");
+        els.fullscreenBtn.addEventListener("click", () => {
+            els.pdfContainer.classList.toggle("expanded");
         });
 
-        table_body.appendChild(table_row);
+        setupButtonEvents();
+        refreshButtons();
+
+        setStatus("Ühendun Prodcelliga...");
+
+        if (!await waitForProdcellHandshake()) {
+            setStatus(
+                "Prodcell ei saatnud API võtit. Ava tahvel Prodcelli kaudu (Töötaja tahvel), mitte otselingiga.",
+                true
+            );
+            return;
+        }
+
+        try {
+            state.operations = await fetcher.getOperations(OPERATION_SEQUENCE);
+        } catch (e) {
+            setStatus(`Operatsioonide laadimine ebaõnnestus: ${e.message}`, true);
+            return;
+        }
+
+        if (!state.operations.length) {
+            setStatus(
+                "Prodcellis pole ühtegi operatsiooni defineeritud, seega tööd ei saa operatsioonide kaupa märkida.",
+                true
+            );
+            return;
+        }
+
+        buildOperationSelect();
+
+        await reload();
+
+        setInterval(() => { reload().catch(() => {}); }, REFRESH_MS);
     }
 
-    const firstRow = document.querySelector(".task-table tbody tr");
+    /**
+     * Prodcell posts the session API key into the iframe. There is deliberately
+     * no baked-in fallback key: a key committed to a public repo is a live
+     * credential for the whole tenant.
+     */
+    function waitForProdcellHandshake() {
+        return new Promise((resolve) => {
+            let settled = false;
 
-    if (firstRow) {
-        firstRow.click();
+            const done = (ok) => {
+                if (settled) return;
+                settled = true;
+                resolve(ok);
+            };
+
+            window.addEventListener("message", (event) => {
+                if (!event.data || !event.data.prodcell_token) return;
+
+                DataFetcher.apiKey = event.data.prodcell_token;
+                DataFetcher.setApiBase(event.data.prodcell_api_url);
+
+                done(true);
+            });
+
+            setTimeout(() => done(false), HANDSHAKE_TIMEOUT_MS);
+        });
     }
 
-    const intervalID = setInterval(updateTable, 10000);
+    /* =========================================================
+       Data
+       ========================================================= */
 
-    const pdfContainer = document.getElementById("pdfContainer");
-    const fullscreenBtn = document.getElementById("fullscreenBtn");
+    async function reload() {
+        try {
+            const [orders, tasksByOrder] = await Promise.all([
+                fetcher.getOrders(),
+                fetcher.getTasksByOrder()
+            ]);
 
-    fullscreenBtn.addEventListener("click", () => {
-        pdfContainer.classList.toggle("expanded");
-    });
+            state.orders = orders.filter(o => !o.isRemoved() && !o.containsComment("valmis"));
+            state.tasksByOrder = tasksByOrder;
+
+            renderBoard();
+            refreshButtons();
+            setStatus("");
+        } catch (e) {
+            setStatus(`Andmete laadimine ebaõnnestus: ${e.message}`, true);
+        }
+    }
+
+    function taskFor(orderGuid, operationId) {
+        const tasks = state.tasksByOrder.get(orderGuid) || [];
+        return tasks.find(t => t.operation === operationId && !t.isCancelled()) || null;
+    }
+
+    function currentOrder() {
+        return state.orders.find(o => o.getGuid() === state.selectedGuid) || null;
+    }
+
+    function currentTask() {
+        if (!state.selectedGuid || !state.operationId) return null;
+        return taskFor(state.selectedGuid, state.operationId);
+    }
+
+    /* =========================================================
+       Operation selector
+       ========================================================= */
+
+    function buildOperationSelect() {
+        els.amet.innerHTML = "";
+
+        for (const op of state.operations) {
+            const option = document.createElement("option");
+            option.value = op.id;
+            option.textContent = op.name && op.name !== op.code
+                ? `${op.code} - ${op.name}`
+                : op.code;
+            els.amet.appendChild(option);
+        }
+
+        state.operationId = state.operations[0].id;
+        els.amet.value = state.operationId;
+
+        els.amet.addEventListener("change", () => {
+            state.operationId = els.amet.value;
+            renderBoard();
+            refreshButtons();
+        });
+    }
+
+    /* =========================================================
+       Board: orders grouped by this operation's state
+       ========================================================= */
+
+    function renderBoard() {
+        els.groups.innerHTML = "";
+
+        const groups = [
+            { key: "working", title: "Töös", orders: [] },
+            { key: "pending", title: "Ootel", orders: [] },
+            { key: "done", title: "Tehtud", orders: [] }
+        ];
+
+        for (const order of state.orders) {
+            const task = taskFor(order.getGuid(), state.operationId);
+
+            if (task && (task.isWorking() || task.isPaused())) {
+                groups[0].orders.push(order);
+            } else if (task && task.isDone()) {
+                groups[2].orders.push(order);
+            } else {
+                groups[1].orders.push(order);
+            }
+        }
+
+        for (const group of groups) {
+            renderGroup(group);
+        }
+
+        if (state.selectedGuid) {
+            const row = els.groups.querySelector(`tr[data-guid="${cssEscape(state.selectedGuid)}"]`);
+            if (row) row.classList.add("selected");
+        }
+    }
+
+    function renderGroup(group) {
+        const title = document.createElement("div");
+        title.className = `group-title group-${group.key}`;
+        title.textContent = group.title;
+
+        const count = document.createElement("span");
+        count.className = "group-count";
+        count.textContent = String(group.orders.length);
+        title.appendChild(count);
+
+        els.groups.appendChild(title);
+
+        if (!group.orders.length) {
+            const empty = document.createElement("div");
+            empty.className = "group-empty";
+            empty.textContent = "Selles rühmas töid pole.";
+            els.groups.appendChild(empty);
+            return;
+        }
+
+        const table = document.createElement("table");
+        table.className = "task-table";
+
+        const thead = document.createElement("thead");
+        const headRow = document.createElement("tr");
+        for (const [label, width] of [
+            ["T Nr.", "80"], ["Mat.", "30"], ["SO", "50"], ["Klient", "170"],
+            ["Töökäsk", ""], ["Kogus", "60"], ["Operatsioonid", "150"]
+        ]) {
+            const td = document.createElement("td");
+            td.textContent = label;
+            if (width) td.setAttribute("width", width);
+            headRow.appendChild(td);
+        }
+        thead.appendChild(headRow);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        for (const order of group.orders) {
+            tbody.appendChild(buildRow(order));
+        }
+        table.appendChild(tbody);
+
+        els.groups.appendChild(table);
+    }
+
+    function buildRow(order) {
+        const row = document.createElement("tr");
+        row.dataset.guid = order.getGuid();
+
+        const values = [
+            order.getTNr(),
+            order.getMaterial(),
+            order.getSoNr(),
+            order.getClient(),
+            order.getTask(),
+            Number.isFinite(Number(order.getAmount())) ? Math.trunc(order.getAmount()) : ""
+        ];
+
+        for (const value of values) {
+            const td = document.createElement("td");
+            // textContent, not innerHTML: order text is operator-entered data.
+            td.textContent = value == null ? "" : String(value);
+            row.appendChild(td);
+        }
+
+        const chainTd = document.createElement("td");
+        chainTd.appendChild(buildChain(order));
+        row.appendChild(chainTd);
+
+        row.addEventListener("click", () => selectOrder(order.getGuid()));
+
+        return row;
+    }
+
+    /** The whole L-N-P-K chain of one order, so a worker sees what came before. */
+    function buildChain(order) {
+        const chain = document.createElement("div");
+        chain.className = "chain";
+
+        for (const op of state.operations) {
+            const task = taskFor(order.getGuid(), op.id);
+
+            const step = document.createElement("span");
+            step.className = "chain-step";
+            step.textContent = op.code;
+            step.title = `${op.name || op.code}: ${task ? task.statusText() : "Ootel"}`;
+
+            if (task && task.isDone()) step.classList.add("is-done");
+            else if (task && task.isWorking()) step.classList.add("is-working");
+            else if (task && task.isPaused()) step.classList.add("is-paused");
+
+            if (op.id === state.operationId) step.classList.add("is-current");
+
+            chain.appendChild(step);
+        }
+
+        return chain;
+    }
+
+    /* =========================================================
+       Selection + PDF
+       ========================================================= */
+
+    async function selectOrder(guid) {
+        if (state.selectedGuid === guid) return;
+
+        state.selectedGuid = guid;
+
+        els.groups.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
+        const row = els.groups.querySelector(`tr[data-guid="${cssEscape(guid)}"]`);
+        if (row) row.classList.add("selected");
+
+        refreshButtons();
+
+        try {
+            Order.selectedOrder = await fetcher.getOrderByGUID(guid);
+            const pdfBytes = await fetcher.getObjectPDFBytes(guid);
+            if (pdfBytes) {
+                await loadPdf(pdfBytes);
+            } else {
+                els.pdfViewer.innerHTML = "";
+                setStatus("Sellel tellimusel pole PDF töökäsku.");
+            }
+        } catch (e) {
+            setStatus(`Töökäsu avamine ebaõnnestus: ${e.message}`, true);
+        }
+    }
 
     async function loadPdf(pdfBytes) {
 
-        const viewer = document.getElementById("pdfViewer");
+        const viewer = els.pdfViewer;
 
         viewer.innerHTML = "";
 
@@ -866,19 +1207,15 @@
 
         const pdf = await loadingTask.promise;
 
-        const selectedOrder = Order.selectedOrder;
-
-        let fm = new FieldManager(selectedOrder, fetcher);
+        const fm = new FieldManager(Order.selectedOrder, fetcher);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
 
-            let pageContainer = await fm.drawFields(pdf, pageNumber);
+            const pageContainer = await fm.drawFields(pdf, pageNumber);
 
             const page = await pdf.getPage(pageNumber);
 
-            const viewport = page.getViewport({
-                scale: 1.5
-            });
+            const viewport = page.getViewport({ scale: 1.5 });
 
             viewer.appendChild(pageContainer);
 
@@ -897,187 +1234,107 @@
         }
     }
 
-    function createButton(container, x, y, className, value) {
-        let btn = document.createElement("button");
-        btn.style.position = "absolute";
-        btn.style.left = `${x}px`;
-        btn.style.top = `${y}px`;
-        btn.style.fontSize = `18px`;
-        btn.className = className;
-        btn.textContent = value;
-        btn.id = className;
+    /* =========================================================
+       Per-operation work marking
+       ========================================================= */
 
-        container.appendChild(btn);
-
-        return btn;
+    function setupButtonEvents() {
+        els.startBtn.addEventListener("click", () => runAction("start"));
+        els.endBtn.addEventListener("click", () => runAction("end"));
+        els.toggleBtn.addEventListener("click", () => {
+            const task = currentTask();
+            runAction(task && task.isWorking() ? "pause" : "resume");
+        });
     }
 
-    async function updateTable() {
+    /**
+     * Book one lifecycle step on the task that carries the SELECTED OPERATION of
+     * the selected order. The task is created on first start, so an order does
+     * not need all of its operations planned up front.
+     */
+    async function runAction(verb) {
+        if (state.busy) return;
 
-        const fetcher = new DataFetcher();
+        const order = currentOrder();
+        if (!order || !state.operationId) return;
 
-        const newOrders = await fetcher.getOrders();
+        state.busy = true;
+        setButtonsEnabled(false);
 
-        let task_table = document.getElementById("task-table");
+        try {
+            let task = currentTask();
 
-        let table_body = document.querySelector(".task-table tbody");
-
-        const currentOrders = Order.currentOrders;
-
-        if (currentOrders.length < newOrders.length) {
-
-            for (let i = currentOrders.length; i < newOrders.length; ++i) {
-
-                const newOrder = newOrders[i];
-                if (newOrder.containsComment("valmis"))
-                    continue;
-                if (newOrder.isRemoved())
-                    continue;
-
-                addRow(newOrder);
-
-                Order.currentOrders.push(newOrder);
-
-            }
-
-        }
-    }
-
-    async function addRow(order) {
-
-        if (order.containsComment("valmis"))
-            return;
-        if (order.isRemoved())
-            return;
-
-        let task_table = document.getElementById("task-table");
-
-        let table_body = document.querySelector(".task-table tbody");
-
-        let table_row = document.createElement("tr");
-
-        table_row.innerHTML = `
-                < td > ${order.getTNr()}</td >
-            <td>${order.getMaterial()}</td>
-            <td>${order.getSoNr()}</td>
-            <td>${order.getClient()}</td>
-            <td>${order.getTask()}</td>
-            <td>${Math.trunc(order.getAmount())}</td>
-        `;
-
-        table_row.addEventListener("click", async () => {
-
-            if (!table_row.classList.contains("selected")) {
-                pdfBytes = await fetcher.getObjectPDFBytes(order.getGuid());
-
-                if (pdfBytes) {
-                    await loadPdf(pdfBytes);
+            if (!task) {
+                if (verb !== "start") {
+                    setStatus("Sellel operatsioonil pole veel alustatud tööd.", true);
+                    return;
                 }
+                task = await fetcher.createTask(order.getGuid(), state.operationId);
             }
 
-            document
-                .querySelectorAll(".task-table tbody tr")
-                .forEach(row => row.classList.remove("selected"));
+            await fetcher.taskOperation(task.guid, verb, { operation: state.operationId });
 
-            table_row.classList.add("selected");
-
-        });
-
-        table_body.appendChild(table_row);
-
-    }
-
-    function existsToggleButton() {
-        const toggleBtn = document.getElementById("toggleBtn");
-        return toggleBtn != null;
-    }
-
-    function createToggleButton() {
-        const toggleBtn = document.createElement("button");
-        toggleBtn.textContent = "Peata";
-        toggleBtn.className = "pauseBtn";
-        toggleBtn.id = "toggleBtn";
-
-        toggleBtn.addEventListener("click", () => {
-            let textContent = toggleBtn.textContent;
-
-            if (textContent == "Peata") {
-                toggleBtn.textContent = "Jätka";
-            } else if (textContent == "Jätka") {
-                toggleBtn.textContent = "Peata";
-            }
-        });
-
-        const btnSection = document.getElementById("buttons-section");
-        btnSection.prepend(toggleBtn);
-    }
-
-    function deleteElement(id) {
-        const el = document.getElementById(id);
-        if (el != null) {
-            el.remove();
+            await reload();
+        } catch (e) {
+            setStatus(`Toiming ebaõnnestus: ${e.message}`, true);
+        } finally {
+            state.busy = false;
+            refreshButtons();
         }
-    }
-
-    async function setupButtonEvents() {
-        const startBtn = document.getElementById("startBtn");
-        const endBtn = document.getElementById("endBtn");
-
-        startBtn.addEventListener("click", async () => {
-
-            await fetcher.startOperation(Order.selectedOrder.getGuid(), fetcher.getOperationForRole(getCurrentRole()));
-
-            disableButton("startBtn");
-            enableButton("endBtn");
-
-            createToggleButton();
-        });
-        endBtn.addEventListener("click", async () => {
-
-
-
-            disableButton("endBtn");
-
-            if (existsToggleButton()) {
-                document.getElementById("toggleBtn").remove();
-            }
-        });
-    }
-
-    function disableButton(buttonId) {
-        const button = document.getElementById(buttonId);
-        button.className = "button-disabled";
-        button.disabled = true;
-    }
-
-    function enableButton(buttonId) {
-        const button = document.getElementById(buttonId);
-        button.className = buttonId
-        button.disabled = false;
     }
 
     function refreshButtons() {
+        const order = currentOrder();
+        const operation = state.operations.find(o => o.id === state.operationId);
+        const task = order ? currentTask() : null;
 
-        const currentRole = getCurrentRole();
+        const working = Boolean(task && task.isWorking());
+        const paused = Boolean(task && task.isPaused());
+        const done = Boolean(task && task.isDone());
 
-        if (Order.selectedOrder.getStatus() == "W") {
-            disableButton("startBtn");
-            enableButton("endBtn");
-
-            if (!existsToggleButton()) {
-                createToggleButton();
-            }
+        els.selected.innerHTML = "";
+        if (!order) {
+            els.selected.textContent = "Vali nimekirjast töökäsk.";
         } else {
-            enableButton("startBtn");
-            disableButton("endBtn");
-            deleteElement("toggleBtn");
+            const strong = document.createElement("strong");
+            strong.textContent = order.getTNr() || "";
+            els.selected.appendChild(strong);
+
+            const rest = document.createElement("span");
+            rest.textContent = ` / ${operation ? (operation.name || operation.code) : ""} / ${task ? task.statusText() : "Ootel"}`;
+            els.selected.appendChild(rest);
+        }
+
+        setButtonState(els.startBtn, Boolean(order) && !working && !paused && !done, "startBtn");
+        setButtonState(els.endBtn, Boolean(order) && (working || paused), "endBtn");
+
+        els.toggleBtn.textContent = working ? "Peata" : "Jätka";
+        setButtonState(els.toggleBtn, Boolean(order) && (working || paused), working ? "pauseBtn" : "resumeBtn");
+    }
+
+    function setButtonState(button, enabled, activeClass) {
+        button.disabled = !enabled;
+        button.className = enabled ? activeClass : "button-disabled";
+    }
+
+    function setButtonsEnabled(enabled) {
+        for (const b of [els.startBtn, els.toggleBtn, els.endBtn]) {
+            b.disabled = !enabled;
         }
     }
 
-    function getCurrentRole() {
-        return document.getElementById("amet").value;
+    /* =========================================================
+       Helpers
+       ========================================================= */
+
+    function setStatus(text, isError = false) {
+        els.status.textContent = text || "";
+        els.status.classList.toggle("is-error", Boolean(isError));
+    }
+
+    function cssEscape(value) {
+        return String(value).replace(/["\\]/g, "\\$&");
     }
 
 </script>
-
 </html>
