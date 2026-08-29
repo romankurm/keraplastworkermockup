@@ -924,15 +924,19 @@
             return;
         }
 
-        if (!state.operations.length) {
+        // No operations configured yet (a tenant that has not been seeded): keep
+        // the board readable as a plain work order list instead of dying, so
+        // deploying this page before the operations exist cannot take the board
+        // away from the shop floor.
+        if (state.operations.length) {
+            buildOperationSelect();
+        } else {
+            els.amet.style.display = "none";
             setStatus(
-                "Prodcellis pole ühtegi operatsiooni defineeritud, seega tööd ei saa operatsioonide kaupa märkida.",
+                "Prodcellis pole operatsioone defineeritud, seega töid saab praegu ainult vaadata, mitte märkida.",
                 true
             );
-            return;
         }
-
-        buildOperationSelect();
 
         await reload();
 
@@ -1036,6 +1040,15 @@
     function renderBoard() {
         els.groups.innerHTML = "";
 
+        if (!state.operationId) {
+            renderGroup({ key: "pending", title: "Töökäsud", orders: state.orders });
+            if (state.selectedGuid) {
+                const row = els.groups.querySelector(`tr[data-guid="${cssEscape(state.selectedGuid)}"]`);
+                if (row) row.classList.add("selected");
+            }
+            return;
+        }
+
         const groups = [
             { key: "working", title: "Töös", orders: [] },
             { key: "pending", title: "Ootel", orders: [] },
@@ -1091,7 +1104,8 @@
         const headRow = document.createElement("tr");
         for (const [label, width] of [
             ["T Nr.", "80"], ["Mat.", "30"], ["SO", "50"], ["Klient", "170"],
-            ["Töökäsk", ""], ["Kogus", "60"], ["Operatsioonid", "150"]
+            ["Töökäsk", ""], ["Kogus", "60"],
+            ...(state.operations.length ? [["Operatsioonid", "150"]] : [])
         ]) {
             const td = document.createElement("td");
             td.textContent = label;
@@ -1130,9 +1144,11 @@
             row.appendChild(td);
         }
 
-        const chainTd = document.createElement("td");
-        chainTd.appendChild(buildChain(order));
-        row.appendChild(chainTd);
+        if (state.operations.length) {
+            const chainTd = document.createElement("td");
+            chainTd.appendChild(buildChain(order));
+            row.appendChild(chainTd);
+        }
 
         row.addEventListener("click", () => selectOrder(order.getGuid()));
 
@@ -1305,11 +1321,15 @@
             els.selected.appendChild(rest);
         }
 
-        setButtonState(els.startBtn, Boolean(order) && !working && !paused && !done, "startBtn");
-        setButtonState(els.endBtn, Boolean(order) && (working || paused), "endBtn");
+        // Without an operation there is nothing to book work against, so every
+        // button stays dead rather than writing to an arbitrary task.
+        const actionable = Boolean(order) && Boolean(state.operationId);
+
+        setButtonState(els.startBtn, actionable && !working && !paused && !done, "startBtn");
+        setButtonState(els.endBtn, actionable && (working || paused), "endBtn");
 
         els.toggleBtn.textContent = working ? "Peata" : "Jätka";
-        setButtonState(els.toggleBtn, Boolean(order) && (working || paused), working ? "pauseBtn" : "resumeBtn");
+        setButtonState(els.toggleBtn, actionable && (working || paused), working ? "pauseBtn" : "resumeBtn");
     }
 
     function setButtonState(button, enabled, activeClass) {
