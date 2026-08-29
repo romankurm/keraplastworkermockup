@@ -116,26 +116,64 @@ export class DataFetcher {
         return operations;
     }
 
+    static PAGE_SIZE = 1000;
+    static MAX_PAGES = 50;
+
     /**
-     * Every task the current key may read, indexed by order GUID and operation id.
-     * The tasks API has no order filter, so one wide read beats one call per row.
+     * Tasks for the given operations, fully paged.
+     *
+     * A single unpaged read looks fine until the tenant passes the API's row cap,
+     * and then a task that exists silently drops out of the answer, the board
+     * calls its operation unstarted and Alusta opens a second task beside the
+     * real one. So: scope by operation, sort deterministically (paging without a
+     * stable sort can repeat and skip rows), and keep reading until the server's
+     * own total is covered.
      */
-    async getTasks() {
-        const json = await this.request(`/tasks?limit=10000`);
-        return (json.data || []).map(t => new Task(
-            t.guid,
-            t.operation,
-            t.status,
-            t.realStart,
-            t.order,
-            t.operationName,
-            t.realEnd
-        ));
+    async getTasks(operationIds = []) {
+        const filters = operationIds.length
+            ? operationIds.map(id => `&operation=${encodeURIComponent(id)}`)
+            : [""];
+
+        const tasks = [];
+
+        for (const filter of filters) {
+            let page = 1;
+            let fetched = 0;
+            let total = Infinity;
+
+            while (fetched < total && page <= DataFetcher.MAX_PAGES) {
+                const json = await this.request(
+                    `/tasks?limit=${DataFetcher.PAGE_SIZE}&page=${page}&sortField=guid&sortOrder=ASC${filter}`
+                );
+
+                const rows = json.data || [];
+                const reported = Number(json.total);
+                total = Number.isFinite(reported) ? reported : rows.length;
+
+                for (const t of rows) {
+                    tasks.push(new Task(
+                        t.guid,
+                        t.operation,
+                        t.status,
+                        t.realStart,
+                        t.order,
+                        t.operationName,
+                        t.realEnd
+                    ));
+                }
+
+                fetched += rows.length;
+                if (!rows.length) break;
+                page++;
+            }
+        }
+
+        return tasks;
     }
 
-    async getTasksByOrder() {
+    async getTasksByOrder(operationIds = []) {
         const byOrder = new Map();
-        for (const task of await this.getTasks()) {
+        for (const task of await this.getTasks(operationIds)) {
             if (!task.order) continue;
             if (!byOrder.has(task.order)) byOrder.set(task.order, []);
             byOrder.get(task.order).push(task);

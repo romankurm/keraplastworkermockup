@@ -979,7 +979,7 @@
         try {
             const [orders, tasksByOrder] = await Promise.all([
                 fetcher.getOrders(),
-                fetcher.getTasksByOrder()
+                fetcher.getTasksByOrder(state.operations.map(op => op.id))
             ]);
 
             state.orders = orders.filter(o => !o.isRemoved() && !o.containsComment("valmis"));
