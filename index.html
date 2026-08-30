@@ -1051,9 +1051,12 @@
         state.operationId = state.operations[0].id;
         els.amet.value = state.operationId;
 
-        els.amet.addEventListener("change", () => {
+        els.amet.addEventListener("change", async () => {
             state.operationId = els.amet.value;
             renderBoard();
+            // A different operation is a different task, so the clock has to be
+            // read again; without this it sits blank until the next refresh.
+            await readClock(currentTask());
             refreshButtons();
         });
     }
@@ -1444,12 +1447,20 @@
             }
         }
 
-        // The first spell has no work record yet, so the task's own start is
-        // the only anchor. Only used when there are no segments at all, or the
-        // finished ones would be counted twice.
-        if (runningSince === null && !works.length && taskData.status === Task.WORKING && taskData.realStart) {
+        // A spell only gets a work record when it is interrupted, so a task
+        // taken straight from Alusta to Lõpeta has none at all and the task's
+        // own start and end are the whole story. Used only when there are no
+        // segments, otherwise the finished ones would be counted twice.
+        if (!works.length && taskData.realStart) {
             const start = Date.parse(taskData.realStart);
-            if (!Number.isNaN(start)) runningSince = start;
+            if (!Number.isNaN(start)) {
+                if (taskData.realEnd) {
+                    const end = Date.parse(taskData.realEnd);
+                    if (!Number.isNaN(end)) doneSec = Math.max(0, (end - start) / 1000);
+                } else if (taskData.status === Task.WORKING) {
+                    runningSince = start;
+                }
+            }
         }
 
         return { baseSec: Math.round(doneSec), runningSince };
