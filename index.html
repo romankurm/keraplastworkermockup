@@ -882,7 +882,8 @@
         selectedGuid: null,
         busy: false,
         clock: null,
-        clockRead: 0
+        clockRead: 0,
+        reloadSeq: 0
     };
 
     const els = {
@@ -985,11 +986,17 @@
        ========================================================= */
 
     async function reload() {
+        // Two polls can overlap; without this a slow older answer lands
+        // after a newer one and rolls the board back.
+        const seq = ++state.reloadSeq;
+
         try {
             const [orders, tasksByOrder] = await Promise.all([
                 fetcher.getOrders(),
                 fetcher.getTasksByOrder(state.operations.map(op => op.id))
             ]);
+
+            if (seq !== state.reloadSeq) return;
 
             state.orders = orders.filter(o => !o.isRemoved() && !o.containsComment("valmis"));
             state.tasksByOrder = tasksByOrder;
@@ -999,6 +1006,7 @@
             refreshButtons();
             setStatus("");
         } catch (e) {
+            if (seq !== state.reloadSeq) return;
             setStatus(`Andmete laadimine ebaõnnestus: ${e.message}`, true);
         }
     }
@@ -1506,6 +1514,13 @@
             // The list is fresher than this held reading. If the work has stopped
             // since, hold the number where it stands rather than let it keep
             // counting under a label that says Peatatud.
+            // Started again since this reading: nothing here can say when,
+            // so drop it rather than show a frozen number under "Töös".
+            if (!state.clock.running && task.isWorking()) {
+                state.clock = null;
+                return;
+            }
+
             if (state.clock.running && !task.isWorking()) {
                 state.clock = {
                     taskGuid: state.clock.taskGuid,
