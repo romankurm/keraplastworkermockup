@@ -993,9 +993,25 @@
         }
     }
 
+    /**
+     * The task that currently carries this operation of this order.
+     *
+     * An operation can own several tasks over time: finishing one and then
+     * reopening it for a redo creates another. The NEWEST task that is not
+     * cancelled is the live one, so a redo is workable. Taking the first match
+     * instead would hand back the finished task, show the operation as done and
+     * leave every button dead while somebody is standing there redoing it.
+     * Tasks arrive in guid ASC order and Prodcell guids are time ordered.
+     */
     function taskFor(orderGuid, operationId) {
         const tasks = state.tasksByOrder.get(orderGuid) || [];
-        return tasks.find(t => t.operation === operationId && !t.isCancelled()) || null;
+        let current = null;
+        for (const task of tasks) {
+            if (task.operation !== operationId) continue;
+            if (task.isCancelled()) continue;
+            current = task;
+        }
+        return current;
     }
 
     function currentOrder() {
