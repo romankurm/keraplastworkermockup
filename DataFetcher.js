@@ -14,6 +14,11 @@ export class DataFetcher {
         DataFetcher.apiBase = String(url).replace(/\/+$/, "");
     }
 
+    // Without this a half open connection never settles, the action that is
+    // waiting on it never finishes, and every later press of Alusta is dropped
+    // on the floor by the busy flag with nothing shown to the worker.
+    static REQUEST_TIMEOUT_MS = 20000;
+
     async request(path, options = {}) {
         if (!DataFetcher.apiKey) {
             throw new Error("API key puudub, tahvel ei saa Prodcelliga ühendust.");
@@ -25,7 +30,24 @@ export class DataFetcher {
             ...(options.headers || {})
         };
 
-        const response = await fetch(`${DataFetcher.apiBase}${path}`, { ...options, headers });
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), DataFetcher.REQUEST_TIMEOUT_MS);
+
+        let response;
+        try {
+            response = await fetch(`${DataFetcher.apiBase}${path}`, {
+                ...options,
+                headers,
+                signal: controller.signal
+            });
+        } catch (e) {
+            if (e.name === "AbortError") {
+                throw new Error(`${options.method || "GET"} ${path}: Prodcell ei vastanud ${DataFetcher.REQUEST_TIMEOUT_MS / 1000} sekundi jooksul`);
+            }
+            throw new Error(`${options.method || "GET"} ${path}: ${e.message}`);
+        } finally {
+            clearTimeout(timer);
+        }
 
         if (options.raw) return response;
 

@@ -1285,13 +1285,27 @@
      * not need all of its operations planned up front.
      */
     async function runAction(verb) {
-        if (state.busy) return;
+        // A press must never disappear without a word. Every reason to do
+        // nothing says so, so "I pressed Alusta and nothing happened" is not a
+        // state this board can be in.
+        if (state.busy) {
+            setStatus("Eelmine toiming on veel pooleli, oota hetk.");
+            return;
+        }
 
         const order = currentOrder();
-        if (!order || !state.operationId) return;
+        if (!order) {
+            setStatus("Vali enne nimekirjast töökäsk.", true);
+            return;
+        }
+        if (!state.operationId) {
+            setStatus("Vali enne operatsioon.", true);
+            return;
+        }
 
         state.busy = true;
         setButtonsEnabled(false);
+        setStatus("Salvestan...");
 
         try {
             let task = currentTask();
