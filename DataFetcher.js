@@ -227,6 +227,17 @@ export class DataFetcher {
      * start | pause | resume | end on one task. This is what actually books work
      * per operation; the order-level route can only ever touch a single task.
      */
+    /**
+     * One task with its booked time. The task list leaves runTimeSec out, and
+     * the number has to come from the server anyway: it is the sum of the
+     * task's finished work plus the segment running right now, so it survives a
+     * page reload and reads the same on every screen.
+     */
+    async getTask(taskGuid) {
+        const json = await this.request(`/tasks/${encodeURIComponent(taskGuid)}`);
+        return json.data || json;
+    }
+
     async taskOperation(taskGuid, operation, performance = {}) {
         const json = await this.request(`/tasks/${taskGuid}/${operation}`, {
             method: "POST",

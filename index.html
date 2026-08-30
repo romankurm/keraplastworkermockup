@@ -790,6 +790,12 @@
         color: #374151;
     }
 
+    .selected-clock {
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        color: #111827;
+    }
+
     .selected-line strong {
         color: #111827;
     }
@@ -874,7 +880,8 @@
         orders: [],
         tasksByOrder: new Map(),
         selectedGuid: null,
-        busy: false
+        busy: false,
+        clock: null
     };
 
     const els = {
@@ -941,6 +948,7 @@
         await reload();
 
         setInterval(() => { reload().catch(() => {}); }, REFRESH_MS);
+        setInterval(tickClock, 1000);
     }
 
     /**
@@ -985,6 +993,7 @@
             state.orders = orders.filter(o => !o.isRemoved() && !o.containsComment("valmis"));
             state.tasksByOrder = tasksByOrder;
 
+            await readClock(currentTask());
             renderBoard();
             refreshButtons();
             setStatus("");
@@ -1209,6 +1218,7 @@
         const row = els.groups.querySelector(`tr[data-guid="${cssEscape(guid)}"]`);
         if (row) row.classList.add("selected");
 
+        await readClock(currentTask());
         refreshButtons();
 
         try {
@@ -1349,6 +1359,12 @@
             const rest = document.createElement("span");
             rest.textContent = ` / ${operation ? (operation.name || operation.code) : ""} / ${task ? task.statusText() : "Ootel"}`;
             els.selected.appendChild(rest);
+
+            const clock = document.createElement("span");
+            clock.className = "selected-clock";
+            clock.id = "selectedClock";
+            clock.textContent = formatDuration(currentElapsedSeconds(task));
+            els.selected.appendChild(clock);
         }
 
         // Without an operation there is nothing to book work against, so every
@@ -1376,6 +1392,94 @@
     /* =========================================================
        Helpers
        ========================================================= */
+
+    /**
+     * Booked time on the selected task.
+     *
+     * The number comes from the server, which counts the task's finished work
+     * plus the segment running right now, so a paused task stops counting, a
+     * reload does not restart the clock and every screen shows the same figure.
+     * Between reads it is only advanced locally while the task is running.
+     */
+    function currentElapsedSeconds(task) {
+        if (!task || !state.clock || state.clock.taskGuid !== task.guid) return null;
+
+        if (!state.clock.running) return state.clock.baseSec;
+
+        return state.clock.baseSec + Math.max(0, Math.round((Date.now() - state.clock.readAt) / 1000));
+    }
+
+    function formatDuration(seconds) {
+        if (seconds === null || seconds === undefined) return "";
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return `  ${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    }
+
+    /**
+     * Time booked on a task, from the raw work segments.
+     *
+     * Deliberately not runTimeSec: that is built from Task.realTime, which is
+     * stored rounded to two decimals of an HOUR, so it moves in 36 second steps
+     * and reads 00:00:00 through the whole first spell of work, because the
+     * work record for a spell is only written when it ends. The segments carry
+     * exact timestamps, so summing them here is both exact and pause aware.
+     */
+    function elapsedFromTask(taskData) {
+        const works = Array.isArray(taskData.works) ? taskData.works : [];
+
+        let doneSec = 0;
+        let runningSince = null;
+
+        for (const work of works) {
+            const start = work.realStart ? Date.parse(work.realStart) : NaN;
+            if (Number.isNaN(start)) continue;
+
+            if (work.realEnd) {
+                const end = Date.parse(work.realEnd);
+                if (!Number.isNaN(end)) doneSec += Math.max(0, (end - start) / 1000);
+            } else {
+                runningSince = start;
+            }
+        }
+
+        // The first spell has no work record yet, so the task's own start is
+        // the only anchor. Only used when there are no segments at all, or the
+        // finished ones would be counted twice.
+        if (runningSince === null && !works.length && taskData.status === Task.WORKING && taskData.realStart) {
+            const start = Date.parse(taskData.realStart);
+            if (!Number.isNaN(start)) runningSince = start;
+        }
+
+        return { baseSec: Math.round(doneSec), runningSince };
+    }
+
+    async function readClock(task) {
+        if (!task) {
+            state.clock = null;
+            return;
+        }
+
+        try {
+            const fresh = await fetcher.getTask(task.guid);
+            const { baseSec, runningSince } = elapsedFromTask(fresh);
+            state.clock = {
+                taskGuid: task.guid,
+                baseSec,
+                readAt: runningSince === null ? Date.now() : runningSince,
+                running: runningSince !== null
+            };
+        } catch (e) {
+            state.clock = null;
+        }
+    }
+
+    function tickClock() {
+        const el = document.getElementById("selectedClock");
+        if (!el) return;
+        el.textContent = formatDuration(currentElapsedSeconds(currentTask()));
+    }
 
     function setStatus(text, isError = false) {
         els.status.textContent = text || "";
