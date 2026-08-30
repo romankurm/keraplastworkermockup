@@ -1466,14 +1466,29 @@
         return { baseSec: Math.round(doneSec), runningSince };
     }
 
+    /**
+     * Read the clock for a task, discarding an answer that is no longer wanted.
+     *
+     * Switching operation twice quickly, or a refresh landing across a switch,
+     * puts two of these in flight; without the generation check the slower and
+     * older answer wins and the timer sits blank until the next refresh. A
+     * failed read keeps a good reading for the same task rather than blanking
+     * it over one bad request.
+     */
+    let clockRead = 0;
+
     async function readClock(task) {
+        const seq = ++clockRead;
+
         if (!task) {
-            state.clock = null;
+            if (seq === clockRead) state.clock = null;
             return;
         }
 
         try {
             const fresh = await fetcher.getTask(task.guid);
+            if (seq !== clockRead) return;
+
             const { baseSec, runningSince } = elapsedFromTask(fresh);
             state.clock = {
                 taskGuid: task.guid,
@@ -1482,7 +1497,8 @@
                 running: runningSince !== null
             };
         } catch (e) {
-            state.clock = null;
+            if (seq !== clockRead) return;
+            if (!state.clock || state.clock.taskGuid !== task.guid) state.clock = null;
         }
     }
 
