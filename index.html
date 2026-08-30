@@ -1497,7 +1497,23 @@
             };
         } catch (e) {
             if (seq !== state.clockRead) return;
-            if (!state.clock || state.clock.taskGuid !== task.guid) state.clock = null;
+
+            if (!state.clock || state.clock.taskGuid !== task.guid) {
+                state.clock = null;
+                return;
+            }
+
+            // The list is fresher than this held reading. If the work has stopped
+            // since, hold the number where it stands rather than let it keep
+            // counting under a label that says Peatatud.
+            if (state.clock.running && !task.isWorking()) {
+                state.clock = {
+                    taskGuid: state.clock.taskGuid,
+                    baseSec: currentElapsedSeconds(task),
+                    readAt: Date.now(),
+                    running: false
+                };
+            }
         }
     }
 
