@@ -881,7 +881,8 @@
         tasksByOrder: new Map(),
         selectedGuid: null,
         busy: false,
-        clock: null
+        clock: null,
+        clockRead: 0
     };
 
     const els = {
@@ -1475,19 +1476,17 @@
      * failed read keeps a good reading for the same task rather than blanking
      * it over one bad request.
      */
-    let clockRead = 0;
-
     async function readClock(task) {
-        const seq = ++clockRead;
+        const seq = ++state.clockRead;
 
         if (!task) {
-            if (seq === clockRead) state.clock = null;
+            if (seq === state.clockRead) state.clock = null;
             return;
         }
 
         try {
             const fresh = await fetcher.getTask(task.guid);
-            if (seq !== clockRead) return;
+            if (seq !== state.clockRead) return;
 
             const { baseSec, runningSince } = elapsedFromTask(fresh);
             state.clock = {
@@ -1497,7 +1496,7 @@
                 running: runningSince !== null
             };
         } catch (e) {
-            if (seq !== clockRead) return;
+            if (seq !== state.clockRead) return;
             if (!state.clock || state.clock.taskGuid !== task.guid) state.clock = null;
         }
     }
