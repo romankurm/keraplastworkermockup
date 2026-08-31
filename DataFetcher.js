@@ -138,6 +138,19 @@ export class DataFetcher {
         return operations;
     }
 
+    /**
+     * A row count from the API, or null when the value cannot be one.
+     *
+     * Not Number(): that reads null, false and "" as 0, so a response carrying
+     * any of them would look like a trustworthy empty page and the board would
+     * conclude that no operation has been started on anything.
+     */
+    static rowCount(raw) {
+        if (typeof raw === "number") return Number.isInteger(raw) && raw >= 0 ? raw : null;
+        if (typeof raw === "string" && /^d+$/.test(raw.trim())) return Number(raw.trim());
+        return null;
+    }
+
     static PAGE_SIZE = 1000;
     static MAX_PAGES = 50;
 
@@ -168,9 +181,16 @@ export class DataFetcher {
                     `/tasks?limit=${DataFetcher.PAGE_SIZE}&page=${page}&sortField=guid&sortOrder=ASC${filter}`
                 );
 
-                const rows = json.data || [];
-                const reported = Number(json.total);
-                total = Number.isFinite(reported) ? reported : rows.length;
+                if (!json || !Array.isArray(json.data)) {
+                    throw new Error(`Taskide vastuses ei ole massiivi`);
+                }
+                const rows = json.data;
+
+                const reported = DataFetcher.rowCount(json.total);
+                if (reported === null) {
+                    throw new Error(`Taskide vastuses ei ole kasutatavat total-i: ${JSON.stringify(json.total)}`);
+                }
+                total = reported;
 
                 for (const t of rows) {
                     tasks.push(new Task(
@@ -185,8 +205,16 @@ export class DataFetcher {
                 }
 
                 fetched += rows.length;
+                if (fetched > total) {
+                    throw new Error(`Taskide vastus andis ${fetched} rida, total on ${total}`);
+                }
+
                 if (!rows.length) break;
                 page++;
+            }
+
+            if (fetched < total) {
+                throw new Error(`Taske loeti ${fetched} ${total}-st, seis on puudulik`);
             }
         }
 
@@ -245,7 +273,15 @@ export class DataFetcher {
             body: JSON.stringify(performance)
         });
         const t = json.data || json;
-        return new Task(t.guid, t.operation, t.status, t.realStart, t.order, t.operationName, t.realEnd);
+        return new Task(
+            t.guid,
+            typeof t.operation === "object" && t.operation ? t.operation.id : t.operation,
+            t.status,
+            t.realStart,
+            t.order,
+            t.operationName,
+            t.realEnd
+        );
     }
 
     async getObjectPDFGuid(object_id) {

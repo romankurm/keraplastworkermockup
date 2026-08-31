@@ -883,7 +883,8 @@
         busy: false,
         clock: null,
         clockRead: 0,
-        reloadSeq: 0
+        reloadSeq: 0,
+        selectSeq: 0
     };
 
     const els = {
@@ -1002,6 +1003,8 @@
             state.tasksByOrder = tasksByOrder;
 
             await readClock(currentTask());
+            if (seq !== state.reloadSeq) return;
+
             renderBoard();
             refreshButtons();
             setStatus("");
@@ -1021,6 +1024,16 @@
      * leave every button dead while somebody is standing there redoing it.
      * Tasks arrive in guid ASC order and Prodcell guids are time ordered.
      */
+    /** Put a task we just wrote into the local snapshot. */
+    function applyTask(fresh) {
+        if (!fresh || !fresh.guid || !fresh.order) return;
+
+        const list = state.tasksByOrder.get(fresh.order) || [];
+        const at = list.findIndex(t => t.guid === fresh.guid);
+        if (at === -1) list.push(fresh); else list[at] = fresh;
+        state.tasksByOrder.set(fresh.order, list);
+    }
+
     function taskFor(orderGuid, operationId) {
         const tasks = state.tasksByOrder.get(orderGuid) || [];
         let current = null;
@@ -1224,6 +1237,12 @@
     async function selectOrder(guid) {
         if (state.selectedGuid === guid) return;
 
+        // Picking a second order before the first has finished loading must not
+        // let the older chain paint its PDF over the newer one, or leave
+        // Order.selectedOrder pointing at the order that is no longer shown:
+        // FieldManager saves the edited fields against exactly that order.
+        const seq = ++state.selectSeq;
+
         state.selectedGuid = guid;
 
         els.groups.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
@@ -1234,8 +1253,14 @@
         refreshButtons();
 
         try {
-            Order.selectedOrder = await fetcher.getOrderByGUID(guid);
+            const order = await fetcher.getOrderByGUID(guid);
+            if (seq !== state.selectSeq) return;
+
             const pdfBytes = await fetcher.getObjectPDFBytes(guid);
+            if (seq !== state.selectSeq) return;
+
+            Order.selectedOrder = order;
+
             if (pdfBytes) {
                 await loadPdf(pdfBytes);
             } else {
@@ -1243,6 +1268,7 @@
                 setStatus("Sellel tellimusel pole PDF töökäsku.");
             }
         } catch (e) {
+            if (seq !== state.selectSeq) return;
             setStatus(`Töökäsu avamine ebaõnnestus: ${e.message}`, true);
         }
     }
@@ -1340,7 +1366,14 @@
                 task = await fetcher.createTask(order.getGuid(), state.operationId);
             }
 
-            await fetcher.taskOperation(task.guid, verb, { operation: state.operationId });
+            const updated = await fetcher.taskOperation(task.guid, verb, { operation: state.operationId });
+
+            // The answer to the write is what actually happened, so it is applied
+            // before the refresh. Otherwise a refresh that fails right after a
+            // successful Lõpeta leaves the button and the clock still saying Töös.
+            applyTask(updated);
+            await readClock(currentTask());
+            refreshButtons();
 
             await reload();
         } catch (e) {
