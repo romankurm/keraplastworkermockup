@@ -1243,6 +1243,12 @@
         // FieldManager saves the edited fields against exactly that order.
         const seq = ++state.selectSeq;
 
+        // Clear the old document straight away. Leaving it up means a failed
+        // load for the new row silently keeps the previous order's PDF on
+        // screen, editable, under the new row.
+        els.pdfViewer.innerHTML = "";
+        Order.selectedOrder = null;
+
         state.selectedGuid = guid;
 
         els.groups.querySelectorAll("tbody tr").forEach(r => r.classList.remove("selected"));
@@ -1262,7 +1268,7 @@
             Order.selectedOrder = order;
 
             if (pdfBytes) {
-                await loadPdf(pdfBytes);
+                await loadPdf(pdfBytes, seq);
             } else {
                 els.pdfViewer.innerHTML = "";
                 setStatus("Sellel tellimusel pole PDF töökäsku.");
@@ -1273,7 +1279,7 @@
         }
     }
 
-    async function loadPdf(pdfBytes) {
+    async function loadPdf(pdfBytes, seq) {
 
         const viewer = els.pdfViewer;
 
@@ -1286,14 +1292,20 @@
         });
 
         const pdf = await loadingTask.promise;
+        // Rendering is a long chain of awaits. Without a check after each one an
+        // abandoned document keeps drawing into the viewer under the row the
+        // worker has since picked, and its fields would save against that order.
+        if (seq !== state.selectSeq) return;
 
         const fm = new FieldManager(Order.selectedOrder, fetcher);
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
 
             const pageContainer = await fm.drawFields(pdf, pageNumber);
+            if (seq !== state.selectSeq) return;
 
             const page = await pdf.getPage(pageNumber);
+            if (seq !== state.selectSeq) return;
 
             const viewport = page.getViewport({ scale: 1.5 });
 
@@ -1371,6 +1383,10 @@
             // The answer to the write is what actually happened, so it is applied
             // before the refresh. Otherwise a refresh that fails right after a
             // successful Lõpeta leaves the button and the clock still saying Töös.
+            // Bumping the counter first drops any refresh that started before the
+            // write, which would otherwise land afterwards and put the old status
+            // back.
+            state.reloadSeq++;
             applyTask(updated);
             await readClock(currentTask());
             refreshButtons();

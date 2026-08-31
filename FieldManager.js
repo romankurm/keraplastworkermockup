@@ -203,7 +203,17 @@ export class FieldManager {
             "salvesta-btn",
             "Salvesta"
         );
+        let saving = false;
+
         salvestaBtn.addEventListener("click", async () => {
+            // A second click while the first save is still deciding whether the
+            // file exists creates a second taskFields file for the same order,
+            // and a later read picks whichever it finds first.
+            if (saving) return;
+            saving = true;
+            salvestaBtn.disabled = true;
+
+            try {
             const allFields = Array.from(document.querySelectorAll(".task-field"));
 
             let fieldsMap = new Map();
@@ -245,6 +255,10 @@ export class FieldManager {
                 await this.fetcher.createJsonFile(this.selectedOrder.getGuid(), jsonBytes);
             } else {
                 await this.fetcher.replaceJsonFile(this.selectedOrder.getGuid(), await this.fetcher.getOrderFileGUID(this.selectedOrder.getGuid(), "taskFields"), jsonBytes);
+            }
+            } finally {
+                saving = false;
+                salvestaBtn.disabled = false;
             }
         });
     }
@@ -382,4 +396,4 @@ export class FieldManager {
         return btn;
     }
 
-}
+}

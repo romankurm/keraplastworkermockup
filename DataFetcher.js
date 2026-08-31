@@ -147,7 +147,7 @@ export class DataFetcher {
      */
     static rowCount(raw) {
         if (typeof raw === "number") return Number.isInteger(raw) && raw >= 0 ? raw : null;
-        if (typeof raw === "string" && /^d+$/.test(raw.trim())) return Number(raw.trim());
+        if (typeof raw === "string" && /^\d+$/.test(raw.trim())) return Number(raw.trim());
         return null;
     }
 
