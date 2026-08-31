@@ -950,7 +950,7 @@
 
         await reload();
 
-        setInterval(() => { reload().catch(() => {}); }, REFRESH_MS);
+        setInterval(() => { reload().catch(err => console.error("reload failed", err)); }, REFRESH_MS);
         setInterval(tickClock, 1000);
     }
 
