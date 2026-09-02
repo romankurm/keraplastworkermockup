@@ -392,6 +392,9 @@ export class DataFetcher {
     }
 
     async hasTaskFieldsJSON(guid) {
+
+        const filesList = await this.getOrderFilesList(guid);
+
         return (await this.getOrderFileGUID(guid, "taskFields")) != null;
     }
 

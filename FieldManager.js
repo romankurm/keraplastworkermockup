@@ -396,4 +396,27 @@ export class FieldManager {
         return btn;
     }
 
-}
+    async hasKatseraport(pdfBytes) {
+
+        const pdf = await pdfjsLib.getDocument({
+            data: new Uint8Array(pdfBytes)
+        }).promise;
+
+        for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+
+            const page = await pdf.getPage(pageNumber);
+            const textContent = await page.getTextContent();
+
+            const found = textContent.items.some(
+                item => item.str.includes("Katseraport")
+            );
+
+            if (found) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+}
