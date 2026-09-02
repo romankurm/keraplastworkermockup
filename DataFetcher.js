@@ -303,6 +303,25 @@ export class DataFetcher {
         return null;
     }
 
+    async getObjectStickerGuid(object_id) {
+
+        const responseDataList = (await this.getOrderFilesList(object_id)) || [];
+
+        if (responseDataList.length === 0)
+            return null;
+
+        for (let dataObj of responseDataList) {
+
+            if (dataObj["name"] == null)
+                continue;
+
+            if (dataObj["name"].includes("sticker"))
+                return dataObj["guid"];
+
+        }
+        return null;
+    }
+
     async getObjectPDFBytes(object_id) {
 
         let pdf_guid = await this.getObjectPDFGuid(object_id);
@@ -311,6 +330,21 @@ export class DataFetcher {
 
         const response = await this.request(
             `/objects/Order/${object_id}/files/${pdf_guid}/download`,
+            { raw: true }
+        );
+
+        return await response.arrayBuffer();
+
+    }
+
+    async getObjectStickerBytes(object_id) {
+
+        let sticker_guid = await this.getObjectStickerGuid(object_id);
+
+        if (sticker_guid == null) return null;
+
+        const response = await this.request(
+            `/objects/Order/${object_id}/files/${sticker_guid}/download`,
             { raw: true }
         );
 
