@@ -263,10 +263,7 @@ export class FieldManager {
         });
     }
 
-
     createField(container, x, y, text, pageNr) {
-
-        if (!text || text.trim() === "") return;
 
         const input = document.createElement("input");
 
