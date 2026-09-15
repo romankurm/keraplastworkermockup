@@ -431,4 +431,26 @@ export class DataFetcher {
         return (infoJSON && infoJSON.user && infoJSON.user.roles) || [];
     }
 
+    async isOrderDownloaded(guid) {
+    return (await this.getOrderFileGUID(guid, "downloaded")) != null;
+    }
+
+    async markOrderDownloaded(guid) {
+        const jsonBytes = new TextEncoder().encode(
+            JSON.stringify({
+                downloaded: true,
+                downloadedAt: new Date().toISOString()
+            })
+        );
+
+        if (await this.isOrderDownloaded(guid)) {
+            return;
+        }
+
+        await this.request(
+            `/objects/Order/${guid}/files?name=downloaded&mimetype=application/json`,
+            { method: "POST", body: jsonBytes }
+        );
+    }
+
 };

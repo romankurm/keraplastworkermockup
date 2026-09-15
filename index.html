@@ -1380,8 +1380,27 @@
 
             if (seq !== state.reloadSeq) return;
 
-            state.orders = orders.filter(o => !o.isRemoved() && !o.containsComment("valmis"));
             state.tasksByOrder = tasksByOrder;
+
+            const visibleOrders = orders.filter(
+                o => !o.isRemoved() && !o.containsComment("valmis")
+            );
+
+            const downloaded = new Set(
+                await Promise.all(
+                    visibleOrders
+                        .filter(order => isOrderReady(order))
+                        .map(async order => {
+                            return await fetcher.isOrderDownloaded(order.getGuid())
+                                ? order.getGuid()
+                                : null;
+                        })
+                )
+            );
+
+            state.orders = visibleOrders.filter(
+                order => !downloaded.has(order.getGuid())
+            );
 
             await readClock(currentTask());
             if (seq !== state.reloadSeq) return;
@@ -2207,17 +2226,9 @@
                 throw new Error("PDF-il puuduvad leheküljed.");
             }
 
-            // ---------------------------------------------------------
-            // Load PDF.js
-            // ---------------------------------------------------------
-
             const pdfJs = await pdfjsLib.getDocument({
                 data: pdfBytes
             }).promise;
-
-            // ---------------------------------------------------------
-            // Load saved fields
-            // ---------------------------------------------------------
 
             let fieldsMap = null;
 
@@ -2233,10 +2244,6 @@
 
                 fieldsMap = JSON.parse(jsonString);
             }
-
-            // ---------------------------------------------------------
-            // Check the LAST page
-            // ---------------------------------------------------------
 
             const lastPdfJsPage =
                 await pdfJs.getPage(pdfJs.numPages);
@@ -2260,17 +2267,9 @@
                         item.str.includes("Katseraport")
                 );
 
-            // ---------------------------------------------------------
-            // Determine pages to copy
-            // ---------------------------------------------------------
-
             let pageIndexes;
 
             if (isReportPage && sourcePageCount >= 2) {
-
-                // Last page is Katseraport
-                // → copy the last TWO pages
-
                 pageIndexes = [
                     sourcePageCount - 2,
                     sourcePageCount - 1
@@ -2281,10 +2280,6 @@
                 );
 
             } else if (isTaskPage) {
-
-                // Last page is task page
-                // → copy only the last page
-
                 pageIndexes = [
                     sourcePageCount - 1
                 ];
@@ -2294,8 +2289,6 @@
                 );
 
             } else {
-
-                // Fallback
                 pageIndexes = [
                     sourcePageCount - 1
                 ];
@@ -2304,10 +2297,6 @@
                     "Could not identify last page → downloading last page"
                 );
             }
-
-            // ---------------------------------------------------------
-            // Create output PDF
-            // ---------------------------------------------------------
 
             const outputPdf =
                 await PDFLib.PDFDocument.create();
@@ -2322,12 +2311,7 @@
                 outputPdf.addPage(page);
             }
 
-            // ---------------------------------------------------------
-            // Draw fields on each copied page
-            // ---------------------------------------------------------
-
             if (fieldsMap) {
-
                 const font =
                     await outputPdf.embedFont(
                         PDFLib.StandardFonts.Helvetica
@@ -2336,7 +2320,6 @@
                 const SCALE = 1.5;
 
                 for (let i = 0; i < pageIndexes.length; i++) {
-
                     const originalPageNumber =
                         pageIndexes[i] + 1;
 
@@ -2347,10 +2330,6 @@
 
                     const textContent =
                         await pdfJsPage.getTextContent();
-
-                    // ---------------------------------------------
-                    // Determine page type
-                    // ---------------------------------------------
 
                     const finishedText =
                         textContent.items.findLast(
@@ -2371,7 +2350,6 @@
                     let fields = null;
 
                     if (isTaskPage) {
-
                         fields = fieldsMap[1];
 
                         console.log(
@@ -2379,7 +2357,6 @@
                         );
 
                     } else if (isReportPage) {
-
                         fields = fieldsMap[2];
 
                         console.log(
@@ -2387,18 +2364,12 @@
                         );
 
                     } else {
-
                         console.log(
                             `Page ${originalPageNumber} → no fields`
                         );
                     }
 
-                    // ---------------------------------------------
-                    // Draw fields
-                    // ---------------------------------------------
-
                     if (fields && fields.length > 0) {
-
                         drawFieldsOnPage(
                             outputPdf.getPage(i),
                             fields,
@@ -2409,16 +2380,8 @@
                 }
             }
 
-            // ---------------------------------------------------------
-            // Save
-            // ---------------------------------------------------------
-
             const modifiedPdfBytes =
                 await outputPdf.save();
-
-            // ---------------------------------------------------------
-            // Download
-            // ---------------------------------------------------------
 
             const blob = new Blob(
                 [modifiedPdfBytes],
@@ -2440,8 +2403,15 @@
 
             URL.revokeObjectURL(url);
 
-        } catch (error) {
+            await fetcher.markOrderDownloaded(order.getGuid());
 
+            state.selectedGuid = null;
+
+            await reload();
+
+            return true;
+
+        } catch (error) {
             console.error(
                 "PDF download failed:",
                 error
@@ -2451,9 +2421,10 @@
                 "PDF allalaadimine ebaõnnestus.",
                 true
             );
+
+            return false;
         }
     }
-
 
 
     function drawFieldsOnPage(page, fields, font, scale) {
