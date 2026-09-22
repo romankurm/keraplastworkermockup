@@ -1,5 +1,7 @@
 export class Order {
 
+    //
+
     static currentOrders = [];
     static selectedOrder = null;
 

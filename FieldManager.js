@@ -1,4 +1,5 @@
 export class FieldManager {
+    //
 
     constructor(selectedOrder, fetcher) {
         this.selectedOrder = selectedOrder;

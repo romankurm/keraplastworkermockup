@@ -4,6 +4,7 @@
  *   Y done, Z accepted, X cancelled
  */
 export class Task {
+    //
 
     static NEW = "A";
     static BLOCKED = "B";
