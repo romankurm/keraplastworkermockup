@@ -2567,6 +2567,10 @@
                     await writable.write(finalPdfBytes);
                     await writable.close();
 
+                    // Märgi tellimus Prodcellis alla laadituks, et see
+                    // "Tehtud" tabelist kaoks.
+                    await fetcher.markOrderDownloaded(order.getGuid());
+
                     downloaded++;
 
                     setStatus(
@@ -2595,6 +2599,10 @@
                     true
                 );
             }
+
+            // Laadi tahvel uuesti, et äsja alla laaditud tellimused
+            // enam "Tehtud" grupis ei kuvaks.
+            await reload();
 
         } catch (error) {
 
