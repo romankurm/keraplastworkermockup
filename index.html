@@ -810,7 +810,10 @@
         border-radius: 6px;
         background: #2563eb;
         color: white;
+        font-family: inherit;
+        font-size: 14px;
         font-weight: 600;
+        line-height: 1;
         cursor: pointer;
     }
 
@@ -1006,6 +1009,30 @@
         }
     }
 
+    .jump-task-btn {
+        padding: 7px 12px;
+        border: none;
+        border-radius: 6px;
+
+        background: #7c3aed;
+        color: white;
+
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1;
+        cursor: pointer;
+
+        transition:
+            background 0.15s ease,
+            transform 0.15s ease;
+    }
+
+    .jump-task-btn:hover {
+        background: #6d28d9;
+        transform: translateY(-1px);
+    }
+
     .download-btn {
         padding: 7px 12px;
         border: none;
@@ -1014,7 +1041,10 @@
         background: #16a34a;
         color: white;
 
+        font-family: inherit;
+        font-size: 14px;
         font-weight: 600;
+        line-height: 1;
         cursor: pointer;
 
         transition:
@@ -1261,7 +1291,8 @@
         clock: null,
         clockRead: 0,
         reloadSeq: 0,
-        selectSeq: 0
+        selectSeq: 0,
+        workOrderPageEl: null   // UUS
     };
 
     const els = {
@@ -1740,6 +1771,16 @@
         const viewer = els.pdfViewer;
 
         viewer.innerHTML = "";
+        state.workOrderPageEl = null;
+
+        const fm = new FieldManager(Order.selectedOrder, fetcher);
+
+        // pdf.js "varastab" (transfers) omale antava ArrayBuffer'i, muutes selle
+        // kasutuskõlbmatuks. Seepärast antakse siia eraldi KOOPIA (.slice(0)),
+        // et allpool olev põhi-PDF laadimine saaks originaalset pdfBytes't
+        // ikka kasutada.
+        const hasReport = await fm.hasKatseraport(pdfBytes.slice(0));
+        if (seq !== state.selectSeq) return;
 
         const loadingTask = pdfjsLib.getDocument({
             data: new Uint8Array(pdfBytes),
@@ -1753,7 +1794,11 @@
         // worker has since picked, and its fields would save against that order.
         if (seq !== state.selectSeq) return;
 
-        const fm = new FieldManager(Order.selectedOrder, fetcher);
+        // Töökäsu leht: kui dokumendi lõpus on Katseraport, siis on töökäsk
+        // eelviimasel leheküljel, muidu viimasel.
+        const workOrderPageNumber = (hasReport && pdf.numPages >= 2)
+            ? pdf.numPages - 1
+            : pdf.numPages;
 
         for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
 
@@ -1779,6 +1824,10 @@
                 canvasContext: context,
                 viewport: viewport
             }).promise;
+
+            if (pageNumber === workOrderPageNumber) {
+                state.workOrderPageEl = pageContainer;
+            }
         }
     }
 
@@ -1893,6 +1942,17 @@
             });
 
             els.selected.appendChild(printLabelBtn);
+
+            const jumpBtn = document.createElement("button");
+            jumpBtn.textContent = "Hüppa töökäsule";
+            jumpBtn.className = "jump-task-btn";
+
+            jumpBtn.addEventListener("click", (event) => {
+                event.stopPropagation();
+                jumpToWorkOrderPage();
+            });
+
+            els.selected.appendChild(jumpBtn);
 
             const strong = document.createElement("strong");
             strong.textContent = order.getTNr() || "";
@@ -2862,6 +2922,18 @@
         // ---------------------------------------------------------
 
         return await outputPdf.save();
+    }
+
+    function jumpToWorkOrderPage() {
+        if (!state.workOrderPageEl) {
+            setStatus("Töökäsu lehte ei leitud.", true);
+            return;
+        }
+
+        state.workOrderPageEl.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
     }
 
 </script>
